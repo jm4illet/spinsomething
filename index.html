@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Now Playing beta</title>
+<script>/* Optional: URL of your Claude proxy (see README). Leave empty to use Wikipedia + MusicBrainz only. */
+window.SPIN_CLAUDE_PROXY="";</script>
+<style>
+:root{--bg:#f4efe6;--card:#fffdf8;--ink:#1d1a16;--muted:#7a7266;--accent:#4169e1;--line:#e2d9c8;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15130f;--card:#201c17;--ink:#f1eadc;--muted:#a09684;--accent:#5f84ff;--line:#3a332a}}
+:root[data-theme="dark"]{--bg:#15130f;--card:#201c17;--ink:#f1eadc;--muted:#a09684;--accent:#5f84ff;--line:#3a332a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif;min-height:100vh}
+main{max-width:640px;margin:0 auto;padding:24px 18px 48px}
+h1{font-size:28px;margin:0 0 4px;letter-spacing:-.5px}
+.sub{color:var(--muted);font-family:system-ui,sans-serif;font-size:14px;margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.stage{text-align:center;padding:28px 18px}
+.disc{width:140px;height:140px;border-radius:50%;margin:0 auto 18px;background:
+radial-gradient(circle at center,var(--accent) 0 18%,#111 18% 21%,#1c1c1c 21% 100%);
+box-shadow:inset 0 0 0 6px #0a0a0a,inset 0 0 0 9px #262626,0 6px 18px rgba(0,0,0,.25);position:relative}
+.disc::after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 30deg,transparent,rgba(255,255,255,.12),transparent 30%,transparent 50%,rgba(255,255,255,.1),transparent 80%)}
+.spin{animation:spin .5s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.artist{font-size:15px;color:var(--muted);font-family:system-ui,sans-serif;text-transform:uppercase;letter-spacing:1.5px}
+.title{font-size:30px;line-height:1.15;margin:6px 0 10px;word-break:break-word}
+.meta{font-family:system-ui,sans-serif;font-size:14px;color:var(--muted)}
+button,select,input,textarea{font:inherit;font-family:system-ui,sans-serif}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:13px 28px;font-size:17px;font-weight:600;cursor:pointer;margin-top:18px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);padding:8px 14px;font-size:14px;margin:0;font-weight:500}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1 1 130px}
+label{font-family:system-ui,sans-serif;font-size:12px;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.8px}
+select,input[type=text]{width:100%;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+textarea{width:100%;min-height:90px;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.check{display:flex;gap:8px;align-items:center;font-family:system-ui,sans-serif;font-size:14px;margin-top:12px}
+.check label{margin:0;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink)}
+ul{list-style:none;padding:0;margin:0;font-family:system-ui,sans-serif;font-size:14px}
+li{padding:8px 0;border-bottom:1px solid var(--line)}
+li:last-child{border:0}
+li span{color:var(--muted)}
+h2{font-size:16px;margin:0 0 10px}
+details summary{cursor:pointer;font-family:system-ui,sans-serif;font-weight:600}
+ol{font-family:system-ui,sans-serif;font-size:14px;color:var(--muted);padding-left:20px;line-height:1.6}
+a{color:var(--accent)}
+.count{font-family:system-ui,sans-serif;font-size:13px;color:var(--muted);margin-top:8px}
+#matchList{margin-top:10px;max-height:420px;overflow-y:auto}
+#matchList li{display:flex;gap:12px;align-items:center}
+.cover{width:52px;height:52px;border-radius:6px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:28px;line-height:1;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15),0 1px 3px rgba(0,0,0,.25)}
+.mi{min-width:0;flex:1 1 auto}
+.mi .mt{font-weight:600;word-break:break-word}
+.mi .ma,.mi .mm{color:var(--muted);font-size:13px}
+.mi .mv{font-size:13px;font-style:italic;margin-top:2px}
+.cover.big{width:120px;height:120px;font-size:56px;border-radius:8px}
+.np{display:flex;gap:14px;align-items:center}
+.npinfo{min-width:0}
+.npt{font-size:22px;line-height:1.2;word-break:break-word;margin:2px 0}
+.npv{font-style:italic}
+.npbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.nplinks{font-family:system-ui,sans-serif;font-size:13px;margin-top:12px;display:flex;gap:14px;flex-wrap:wrap}
+.about{font-family:system-ui,sans-serif;font-size:14px;line-height:1.55;margin:12px 0 6px}
+.playbtn{margin-left:auto;flex:0 0 auto}
+main{position:relative}
+h1{padding-right:56px}
+.tgl{position:absolute;top:22px;right:18px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.tgl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cols>div{min-width:0}
+.vwrap.still .vinyl{animation:none}
+.rbtns{display:flex;flex-direction:column;gap:4px;margin-left:auto;flex:0 0 auto;align-items:stretch}
+.rbtns .btn{white-space:nowrap}
+.rbtns.hrow{flex-direction:row;margin-left:0}.rbtns.hrow .btn{flex:1 1 0}
+.qbtn{padding:5px 12px!important;font-size:13px!important}
+.qrow{display:flex;gap:10px;align-items:center}
+.qrow .qn{flex:0 0 auto;width:18px;text-align:center;color:var(--muted);font-size:13px}
+.qrow .mi{flex:1 1 auto}
+.qacts{display:flex;gap:4px;flex:0 0 auto}
+.qacts .btn{padding:6px 10px;min-width:34px}
+.stage{position:relative}
+.stgl{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.stgl:hover{color:var(--ink)}
+.stgl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stage.collapsed{padding:14px 52px 14px 18px}
+.stage.collapsed .disc,.stage.collapsed #result{display:none}
+.stage.collapsed #pick{margin-top:0}
+.vwrap{position:relative;width:120px;height:120px;flex:0 0 auto}
+.vinyl{position:absolute;inset:0;border-radius:50%;
+  background:repeating-radial-gradient(circle at center,#141414 0 2px,#1f1f1f 2px 4px);
+  box-shadow:inset 0 0 0 3px #080808,0 3px 10px rgba(0,0,0,.3);animation:spin 1.8s linear infinite}
+.vlabel{position:absolute;left:50%;top:50%;width:42px;height:42px;margin:-21px 0 0 -21px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.vlabel::before{content:"";position:absolute;left:50%;top:4px;width:3px;height:9px;margin-left:-1.5px;border-radius:2px;background:rgba(255,255,255,.85)}
+.vlabel::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#0a0a0a}
+.vsheen{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:conic-gradient(from 20deg,transparent 0,rgba(255,255,255,.16) 12%,transparent 28%,transparent 50%,rgba(255,255,255,.12) 62%,transparent 78%)}
+@media (prefers-reduced-motion:reduce){.vinyl{animation:none}}
+.spinpill{display:inline-block;background:var(--accent);color:#fff;font-weight:700;border-radius:999px;padding:1px 9px;margin-right:6px;font-size:13px}
+li.playing{background:rgba(65,105,225,.09);box-shadow:inset 3px 0 0 var(--accent);padding-left:8px;border-radius:6px}
+.mini{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;align-items:center;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--line);box-shadow:0 -2px 10px rgba(0,0,0,.12);font-family:system-ui,sans-serif}
+.mini[hidden]{display:none}
+.mini .mt2{flex:1 1 auto;min-width:0;text-align:left;background:none;border:0;color:var(--ink);cursor:pointer;padding:4px 0;font:inherit}
+.mini .mt2 b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .mt2 span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.hasmini main{padding-bottom:84px}
+.cols{display:flex;flex-direction:column}.colL,.colR{display:contents}.stage{order:-1}
+.trtog{margin:0;padding:1px 9px;font-size:15px;line-height:22px}
+.trc>:not(:first-child){display:none!important}
+@media (min-width:900px){
+  .cols{display:grid}.colL,.colR{display:block}.stage{order:0}
+  .mini{display:none!important}
+  body.hasmini main{padding-bottom:48px}
+  main{max-width:1120px}
+  .cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:0 20px;align-items:start}
+}
+</style>
+</head>
+<body>
+<script>
+try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")document.documentElement.setAttribute("data-theme",_t)}catch(e){}
+</script>
+<main>
+<button class="tgl" id="themeBtn" type="button" aria-label="Toggle dark mode"></button>
+<h1>Spin Something</h1>
+<p class="sub" id="status">Load your collection to get started.</p>
+
+<div class="cols">
+<div class="colL">
+<div class="card" id="pvCard" hidden>
+  <div class="np">
+    <div id="pvArt"></div>
+    <div class="npinfo">
+      <div class="artist">Preview</div>
+      <div class="npt" id="pvTitle"></div>
+      <div class="meta" id="pvArtist"></div>
+      <div class="meta" id="pvMeta"></div>
+      <div class="meta npv" id="pvVibe"></div>
+      <div class="meta" id="pvSpins" style="margin-top:6px"></div>
+    </div>
+  </div>
+  <div class="npbtns">
+    <button class="btn" id="pvPlay" type="button" style="margin:0;padding:8px 18px;font-size:14px">▶ Play this</button>
+    <button class="btn ghost" id="pvQueue" type="button">＋ Queue</button>
+    <button class="btn ghost" id="pvFav" type="button" aria-pressed="false">☆ Favorite</button>
+    <button class="btn ghost" id="pvClose" type="button">Close</button>
+  </div>
+  <div class="nplinks" id="pvLinks"></div>
+  <p class="about" id="pvText" hidden></p>
+  <div class="meta" id="pvNote" hidden></div>
+  <button class="btn ghost" id="pvAsk" hidden style="margin-top:8px">Get album summary</button>
+  <div id="pvTr" hidden>
+    <div style="display:flex;align-items:center;gap:8px;margin:16px 0 4px">
+      <button class="btn ghost trtog" type="button" aria-expanded="true" title="Collapse tracklist" aria-label="Collapse tracklist">▾</button>
+      <h2 style="margin:0">Tracklist</h2>
+      <button class="btn ghost" id="pvTrPen" type="button" title="Edit tracklist" aria-label="Edit tracklist" style="margin:0;padding:1px 9px;font-size:15px;line-height:22px">✎</button>
+    </div>
+    <div id="pvTrForm" hidden style="margin:6px 0">
+      <textarea id="pvTrText" rows="9" spellcheck="false" placeholder="One song per line, in order" style="font-size:14px"></textarea>
+      <div class="meta" style="margin-top:4px">One song per line, in album order. Start a line with * to make it a standout (bold, with a YouTube link).</div>
+      <button class="btn" id="pvTrSave" type="button" style="margin-top:8px;padding:8px 20px;font-size:15px">Save tracklist</button>
+      <button class="btn ghost" id="pvTrCancel" type="button" style="margin-top:8px;padding:8px 20px;font-size:15px">Cancel</button>
+      <button class="btn ghost" id="pvTrReorder" type="button" style="margin-top:8px;padding:8px 20px;font-size:15px" hidden>Reorder with arrows</button>
+    </div>
+    <ul id="pvTrList"></ul>
+    <div class="meta" id="pvTrNote" style="margin-top:6px"></div>
+    <button class="btn ghost" id="pvTrEdit" type="button" style="margin-top:8px" hidden>Done reordering</button>
+  </div>
+  <button class="btn ghost" id="pvTrBtn" type="button" hidden style="margin-top:8px">Get standout tracks</button>
+  <div style="margin-top:16px"><label for="pvMyNote">My notes</label><textarea id="pvMyNote" rows="2" maxlength="600" style="min-height:56px" placeholder="e.g. great on the good speakers, skip side B"></textarea></div>
+  <details id="pvPairs" hidden style="margin-top:16px">
+    <summary id="pvPairSum">Pairs well with</summary>
+    <div class="meta" id="pvPairNote" style="margin-top:6px"></div>
+    <button class="btn ghost" id="pvPairQ" type="button" style="margin-top:6px" hidden>Queue top 3</button>
+    <ul id="pvPairList" style="margin-top:6px"></ul>
+  </details>
+</div>
+
+<div class="card" id="npCard" hidden>
+  <div class="np">
+    <div id="npArt"></div>
+    <div class="npinfo">
+      <div class="artist">Now playing</div>
+      <div class="npt" id="npTitle"></div>
+      <div class="meta" id="npArtist"></div>
+      <div class="meta" id="npMeta"></div>
+      <div class="meta npv" id="npVibe"></div>
+      <div class="meta" id="npSpins" style="margin-top:6px"></div>
+    </div>
+  </div>
+  <div class="npbtns">
+    <button class="btn ghost" id="npFav" type="button" aria-pressed="false">☆ Favorite</button>
+    <button class="btn ghost" id="npUndo" type="button" hidden>Undo last spin</button>
+    <button class="btn ghost" id="npNext" type="button" hidden>Play next ▶</button>
+    <button class="btn ghost" id="npStop">Stop</button>
+  </div>
+  <div class="nplinks" id="npLinks"></div>
+  <p class="about" id="npText" hidden></p>
+  <div class="meta" id="npNote" hidden></div>
+  <button class="btn ghost" id="npAsk" hidden style="margin-top:8px">Get album summary</button>
+  <p class="meta" id="npMsg"></p>
+  <div id="npTr" hidden>
+    <div style="display:flex;align-items:center;gap:8px;margin:16px 0 4px">
+      <button class="btn ghost trtog" type="button" aria-expanded="true" title="Collapse tracklist" aria-label="Collapse tracklist">▾</button>
+      <h2 style="margin:0">Tracklist</h2>
+      <button class="btn ghost" id="npTrPen" type="button" title="Edit tracklist" aria-label="Edit tracklist" style="margin:0;padding:1px 9px;font-size:15px;line-height:22px">✎</button>
+    </div>
+    <div id="npTrForm" hidden style="margin:6px 0">
+      <textarea id="npTrText" rows="9" spellcheck="false" placeholder="One song per line, in order" style="font-size:14px"></textarea>
+      <div class="meta" style="margin-top:4px">One song per line, in album order. Start a line with * to make it a standout (bold, with a YouTube link).</div>
+      <button class="btn" id="npTrSave" type="button" style="margin-top:8px;padding:8px 20px;font-size:15px">Save tracklist</button>
+      <button class="btn ghost" id="npTrCancel" type="button" style="margin-top:8px;padding:8px 20px;font-size:15px">Cancel</button>
+      <button class="btn ghost" id="npTrReorder" type="button" style="margin-top:8px;padding:8px 20px;font-size:15px" hidden>Reorder with arrows</button>
+    </div>
+    <ul id="npTrList"></ul>
+    <div class="meta" id="npTrNote" style="margin-top:6px"></div>
+    <button class="btn ghost" id="npTrEdit" type="button" style="margin-top:8px" hidden>Done reordering</button>
+  </div>
+  <button class="btn ghost" id="npTrBtn" type="button" hidden style="margin-top:8px">Get standout tracks</button>
+  <div style="margin-top:16px"><label for="npMyNote">My notes</label><textarea id="npMyNote" rows="2" maxlength="600" style="min-height:56px" placeholder="e.g. great on the good speakers, skip side B"></textarea></div>
+  <details id="npPairs" hidden style="margin-top:16px">
+    <summary id="npPairSum">Pairs well with</summary>
+    <div class="meta" id="npPairNote" style="margin-top:6px"></div>
+    <button class="btn ghost" id="npPairQ" type="button" style="margin-top:6px" hidden>Queue top 3</button>
+    <ul id="npPairList" style="margin-top:6px"></ul>
+  </details>
+</div>
+
+<div class="card" id="topCard" hidden>
+  <details id="topDet" open>
+    <summary id="topHead">Most played</summary>
+    <ul id="topList" style="margin-top:6px"></ul>
+  </details>
+</div>
+
+</div>
+<div class="colR">
+<div class="card" id="qCard" hidden>
+  <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="flex:1 1 auto;margin:0" id="qHead">Up next</h2><button class="btn ghost" id="qClear" type="button" style="flex:0 0 auto">Clear queue</button></div>
+  <ul id="qList"></ul>
+</div>
+<div class="card stage" id="stage">
+  <button class="stgl" id="stgl" type="button" aria-controls="stage" aria-expanded="true" title="Collapse">▾</button>
+  <div class="disc" id="disc"></div>
+  <div id="result">
+    <div class="artist">Ready</div>
+    <div class="title">What’s on the turntable?</div>
+    <div class="meta">Load your collection, then hit the button.</div>
+  </div>
+  <button class="btn" id="pick" disabled>Pick a record</button>
+</div>
+
+<div class="card" id="filters" hidden>
+  <details id="filtDet" open>
+  <summary id="filtHead">Filters</summary>
+  <div class="row" style="margin-top:10px">
+    <div><label for="fFormat">Format</label><select id="fFormat"></select></div>
+    <div><label for="fArtist">Artist</label><select id="fArtist"></select></div>
+    <div><label for="fFolder">Folder</label><select id="fFolder"></select></div>
+    <div><label for="fGroup">Genre group</label><select id="fGroup"></select></div>
+    <div id="genreWrap"><label for="fGenre">Genre (from CSV)</label><select id="fGenre"></select></div>
+    <div><label for="fDecade">Decade (original release)</label><select id="fDecade"></select></div>
+    <div><label for="fMood">Mood</label><select id="fMood"></select></div>
+  </div>
+  <div class="check"><input type="checkbox" id="surprise"><label for="surprise">Surprise me: favor records I haven’t played much, or not in a while</label></div>
+  <div class="check"><input type="checkbox" id="noRepeat" checked><label for="noRepeat">Don’t repeat records until I’ve been through them all</label></div>
+  <div class="row" style="justify-content:space-between;margin-top:8px">
+    <div class="count" id="pool" style="margin:0"></div>
+    <button class="btn ghost" id="clearFilters" type="button" style="flex:0 0 auto" hidden>Clear filters</button>
+  </div>
+  </details>
+  <details id="matchDet" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+    <summary id="matchSum">Matching records</summary>
+    <input type="text" id="mSearch" placeholder="Search by artist or title" style="margin-top:10px">
+    <ul id="matchList"></ul>
+  </details>
+</div>
+
+<div class="card" id="histCard" hidden>
+  <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="flex:1 1 auto;margin:0">Recently spun</h2><button class="btn ghost" id="clear" style="flex:0 0 auto">Clear</button></div>
+  <ul id="hist"></ul>
+</div>
+
+<div class="card">
+  <details id="loader" open>
+    <summary>Load / update collection</summary>
+    <ol>
+      <li>On Discogs, go to <a href="https://www.discogs.com/users/export" target="_blank" rel="noopener">Settings → Export</a> and export your <b>Collection</b> (CSV).</li>
+      <li>Open the CSV you receive and choose it below, or paste its contents.</li>
+    </ol>
+    <input type="file" id="file" accept=".csv,text/csv,.txt">
+    <p class="meta">Or paste CSV text, or one record per line as <i>Artist - Title | Genre</i> (genre optional). A CSV needs a “Genre” or “Style” column for the genre filter to work.</p>
+    <textarea id="paste" placeholder="Artist - Title"></textarea>
+    <button class="btn ghost" id="load" style="margin-top:8px">Load pasted text</button>
+    <p class="meta">Your collection is saved only in this browser.</p>
+  </details>
+</div>
+
+<div class="card" id="logCard" hidden>
+  <details id="logDet">
+    <summary>Log past listens</summary>
+    <p class="meta" style="margin-top:8px">Played something earlier without logging it? Find the record and add a listen to its count. Most played updates right away.</p>
+    <div class="row" style="margin-top:6px">
+      <div style="flex:2 1 160px"><label for="logSearch">Record</label><input type="text" id="logSearch" placeholder="Search by artist or title" autocomplete="off"></div>
+      <div style="flex:1 1 130px"><label for="logDate">Date listened</label><input type="date" id="logDate" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)">
+        <div style="display:flex;gap:6px;margin-top:6px"><button type="button" class="btn ghost qbtn" id="logToday" style="flex:1">Today</button><button type="button" class="btn ghost qbtn" id="logYest" style="flex:1">Yesterday</button></div></div>
+    </div>
+    <div class="meta" id="logMsg" style="margin-top:6px" aria-live="polite"></div>
+    <ul id="logList" style="margin-top:6px"></ul>
+  </details>
+</div>
+</div>
+</div>
+</main>
+<div class="mini" id="mini" hidden role="region" aria-label="Now playing mini player">
+  <button type="button" class="mt2" id="miniGo" aria-label="Jump to Now playing"><b id="miniT"></b><span id="miniA"></span></button>
+  <button type="button" class="btn ghost qbtn" id="miniNext" hidden>Next ▶</button>
+  <button type="button" class="btn ghost qbtn" id="miniStop">Stop</button>
+</div>
+
+<script>
+(function(){
+  var KEY_C="spin_collection_v2", KEY_H="spin_history_v1", KEY_N="spin_now_v1", KEY_A="spin_art_v1", KEY_B="spin_about_v2";
+  var DEFAULT_CSV=String.raw`Artist,Title,Format,Label,Pressing Year (Released),Original Release Year,Year Notes,Catalog#,CollectionFolder
+Big Thief,Dragon New Warm Mountain I Believe In You,"2xLP, Album",4AD,2022,2022,,4AD0408LP,Collection
+Cocteau Twins,Heaven Or Las Vegas,"LP, Album, RE, RM, 180",4AD,2020,1990,,CAD 3420,Collection
+Deerhunter,Halcyon Digest,"LP, Album, Whi",4AD,2010,2010,,CAD 3X38,Collection
+Steely Dan,Aja,"LP, Album, RE, RM, Gat",ABC Records,2008,1977,,0076732168813,Collection
+MJ Lenderman,Manning Fireworks,"LP, Album",Anti-,2024,2024,,88013-1,Collection
+Aphex Twin,Selected Ambient Works 85-92,"2xLP, Album, RE, RM",Apollo,2021,1992,,AMBLP3922,Collection
+Taylor Dayne,Tell It To My Heart,"12""",Arista,1987,1987,"12"" single",AD1-9611,Singles
+Broken Social Scene,Broken Social Scene,"2xLP, Album, 180",Arts & Crafts,2005,2005,,A&C 014,Collection
+The Avalanches,Since I Left You,"2xLP, Album, RE, Gat","Astralwerks, Modular Recordings",2000,2000,Pressing year was 0 in export; set to original year,2557356977,Collection
+Joni Mitchell,Court And Spark,"LP, Album, San",Asylum Records,1974,1974,,7E-1001,Collection
+Otis Redding,Pain In My Heart,"LP, Album, RE, 180","ATCO Records, Music On Vinyl",2013,1964,,MOVLP803,Collection
+Roberta Flack,Feel Like Makin' Love,"LP, Album, RP, PR ",Atlantic,1975,1975,,SD 18131,Collection
+"Crosby, Stills, Nash & Young",So Far,"LP, Comp",Atlantic,1977,1974,,SD 19119,Collection
+Clarence Carter,Patches,"LP, Album, CP ",Atlantic,1970,1970,,SD 8267,Collection
+Phil Collins,"Hello, I Must Be Going!","LP, Album, All","Atlantic, Atlantic",1982,1982,,"7 80035-1, 80035-1",Collection
+Arthur Russell,Love Is Overtaking Me (Redux),"2xLP, Comp, RM",Audika Records,2026,2026,"Compilation; 2026 per CSV, not independently verified",AU-1031-1,Collection
+Dave Matthews Band,Crash,"2xLP, Album, RE, RM, 180","Bama Rags Records, RCA, Legacy",2016,1996,,88875189401,Collection
+Beach Fossils,Somersault,"LP, Album",Bayonet Records,2017,2017,,BR-014,Collection
+Beach Fossils,The Other Side Of Life: Piano Ballads,"LP, Album, Blu",Bayonet Records,2021,2021,,BR-043,Collection
+Tom Misch,Full Circle,"LP, Album, Blu","Beyond The Groove, Awal",2026,2026,Verified: released 27 Mar 2026,"BTG021LPI, BTG021LP",Collection
+Herbie Hancock,Empyrean Isles,"LP, Album, RE, 180","Blue Note, UMe, Blue Note, Blue Note, UMe, Blue Note, Blue Note",2023,1965,,"4859562, ST-84175, 84175, 00602448595621, BST 8417",Collection
+DIIV,Oshin,"LP, Album, RE",Captured Tracks,2026,2012,,CT-158,Collection
+Wild Nothing,Gemini,"LP, Album, RP",Captured Tracks,2015,2010,,CT-68,Collection
+Cher,Take Me Home,"LP, Album, 27 ",Casablanca,1979,1979,,NBLP 7133,Collection
+Donna Summer,On The Radio - Greatest Hits Volumes I & II,"2xLP, Comp, P/Mixed, 72 ",Casablanca,1979,1979,,NBLP-2-7191,Collection
+Chuck Berry,The London Chuck Berry Sessions,"LP, Album, Gat",Chess,1972,1972,,CH-60020,Collection
+Herbie Hancock,Head Hunters,"LP, Album, Pit",Columbia,1973,1973,,KC 32731,Collection
+James Taylor (2),JT,"LP, Album, Gat","Columbia, Columbia",1977,1977,,"JC 34811, 34811",Collection
+LCD Soundsystem,Electric Lady Sessions,"2xLP, Album, 180","DFA, Columbia",2019,2019,,"C-216887, 19075892161",Collection
+LCD Soundsystem,This Is Happening,"2xLP, Album, RE","DFA, Virgin Music, DFA, Virgin Music",2017,2010,,"DFA 2250-2, dfa2250",Collection
+This Is Lorelei,"Box for Buddy, Box for Star","LP, Album, Blu",Double Double Whammy,2024,2023,Original 2023; pressing 2024,DDW101,Collection
+Silver Jews,American Water,"LP, Album, RE, RM, Hal",Drag City,2018,1998,,DC149,Collection
+Peter Brown (2),A Fantasy Love Affair,"LP, Album","Drive, Drive",1977,1977,,"DRIVE 104, DR 104",Collection
+Marina & The Diamonds,Electra Heart,"2xLP, Album, RE",Elektra,2015,2012,,531129-1,Collection
+Patrice Rushen,Pizzazz,"LP, Album, SP ",Elektra,1979,1979,,6E-243,Collection
+"Grover Washington, Jr.",Winelight,"LP, Album, SP ",Elektra,1980,1980,,6E-305,Collection
+Carly Simon,No Secrets,"LP, Album, San",Elektra,1972,1972,,EKS-75049,Collection
+"Grover Washington, Jr.",The Best Is Yet To Come,"LP, Album, SP ","Elektra, Elektra",1982,1982,,"60215, 9 60215-1",Collection
+Naked Eyes,Naked Eyes,"LP, Album, Jac",EMI America,1983,1983,,ST-17089,Collection
+Pet Shop Boys,West End Girls,"12"", Single, Dan",EMI America,1986,1984,"Original single 1984; this 12"" is the 1986 re-recording",V-19206,Singles
+Teena Marie / Kelly Marie,Lovergirl / Feels Like I'm In Love,"12"", RE",Epic,1987,1984 / 1979,Teena Marie 'Lovergirl' 1984; Kelly Marie 'Feels Like I'm In Love' 1979,49H 06907,Singles
+The Clash,London Calling,"2xLP, Album, RE, RM, 180",Epic,2013,1979,,88725446991,Collection
+Michael Jackson,Thriller,"LP, Album, RE, RP","Epic, MJJ Productions",2019,1982,,88875143731,Collection
+Sade,Diamond Life,"LP, Album, RE, RM, Hal","Epic, Sony Music, Epic",2024,1984,,"19658784801, EPC 26044",Collection
+New Order,Substance,"2xLP, Comp, RE, RM, 180",Factory,2023,1987,,Fact 200,Collection
+Joy Division,Unknown Pleasures,"LP, Album, RE, RM, 180","Factory, Factory",2015,1979,,"FACT 10R, FACT 10",Collection
+Loleatta Holloway,Hit And Run,"12""",Gold Mind Records,1977,1977,,12G-4006,Singles
+Loleatta Holloway,Love Sensation,"12"", Single, Ind",Gold Mind Records,1980,1980,,GG 505,Singles
+Buck D.D. Black,Mississippi Bluze Mass,"LP, Album","Greene Bottle Records, Inc.",1973,1973,Unverified; CSV pressing year was 1973,GBS-1007,Collection
+R.E.M.,Fables Of The Reconstruction,"LP, Album, RE","I.R.S. Records, Capitol Records",2024,1985,,602465172270,Collection
+R.E.M.,Murmur,"LP, Album, RE","I.R.S. Records, UMe",2024,1983,,B0013015-01,Collection
+John Coltrane,Sun Ship,"LP, Album, Ltd, RE, RM, Hea",Impulse!,1997,1971,"Recorded 1965, first released 1971",IMP-167,Collection
+Dollar Brand,Ode To Duke Ellington,"LP, Album",Inner City Records,1979,1973,Uncertain; CSV pressing year was 1979,IC 6049,Collection
+Ellie Goulding,Halcyon,"LP, Album","Interscope Records, Cherrytree Records",2012,2012,,B0017660-01,Collection
+Daphni,Cherry,"2xLP, Album",Jiaolong,2022,2022,,JIAOLONG024LP,Collection
+Britney Spears,Oops!...I Did It Again,"LP, Album, RE, RP","Jive, Legacy",2023,2000,,88985398991,Collection
+"Grover Washington, Jr.",Inner City Blues,"LP, Album",Kudu,1971,1971,,KU-03,Collection
+"Grover Washington, Jr.",Feels So Good,"LP, Album",Kudu,1975,1975,,KU-24 S1,Collection
+Luther Vandross,Never Too Much,"LP, Album, RE, RM, 35t","Legacy, Epic",2016,1981,,88985342901,Collection
+Sylvan Esso,WITH,"2xLP, Album",Loma Vista,2020,2020,,LVR01246,Collection
+Sylvan Esso,Free Love,"LP, Album",Loma Vista,2020,2020,,LVR01344,Collection
+Sylvan Esso,No Rules Sandy,"LP, Album",Loma Vista,2022,2022,,LVR03037,Collection
+William Onyeabor,Who Is William Onyeabor?,"3xLP, Album, Comp","Luaka Bop, Luaka Bop, Wilfilms Records, Wilfilms Records",2013,2013,,"6 80899 0079-1-7, LP 0079",Collection
+Interpol,Turn On The Bright Lights,"LP, Album, RE, NRP",Matador,2002,2002,Pressing year was 0 in export; set to original year,OLE 545-0,Collection
+Car Seat Headrest,Teens Of Denial,"2xLP, Album",Matador,2016,2016,,OLE-1091-1,Collection
+This Is Lorelei,The Singer In My Band,"LP, Album, Ltd, Bon",Matador,2026,2026,Unverified (2026 per CSV),OLE2217LP,Collection
+Yo La Tengo,Fade,"LP, Album","Matador, Matador",2013,2013,,"OLE 994-1, Ole 994-1",Collection
+Madonna,Nothing Fails,"2x12""",Maverick,2003,2003,,0-42682,Singles
+Madonna,Erotica,"2xLP, Album, RE, Gat","Maverick, Sire, Warner Records",2019,1992,,"R1 45031 , 081227973568",Collection
+Madonna,Bedtime Stories,"LP, Album, RE, Sil","Maverick, Sire, Warner Records, Maverick, Sire, Warner Records",2025,1994,,"RCV1 45767, 603497812691",Collection
+Madonna,Ray Of Light,"2xLP, Album, RE, 180","Maverick, Warner Bros. Records",2016,1998,,R1-46847,Collection
+Madonna,Music,"LP, Album, RE, RP, 180","Maverick, Warner Bros. Records",2016,2000,,R1-47865,Collection
+Madonna,American Life,"LP, 180 + LP, 180 + Album, RE","Maverick, Warner Bros. Records",2016,2003,,R1-48439,Collection
+Madonna,Confessions II,"LP, Album, Ltd, Mixed, Pic","Maverick, Warner Records",2026,2026,Verified: Confessions II released 3 Jul 2026,093624821342,Collection
+Madonna,Confessions II,"2xLP, Album, Dlx, Mixed, Pin","Maverick, Warner Records",2026,2026,Verified: Confessions II released 3 Jul 2026,093624822417,Collection
+Madonna,Confessions II,"LP, Album, Ltd, Mixed, Red","Maverick, Warner Records",2026,2026,Verified: Confessions II released 3 Jul 2026,093624822783,Collection
+Bronski Beat,Truthdare Doubledare,"LP, Album, Glo","MCA Records, MCA Records, Forbidden Fruit",1986,1986,,"MCA 5751, MCA -5751, MCA-5751",Collection
+Sylvester,M-1015,"LP, Album",Megatone Records,1984,1984,,M-1015,Collection
+Patrick Cowley Featuring Sylvester,Do Ya Wanna Funk,"12""",Megatone Records,1982,1982,,MT 102,Singles
+Caribou,Swim,"2x12"", Album",Merge Records,2010,2010,,MRG348,Collection
+Caribou,Our Love,"LP, Album, 180",Merge Records,2014,2014,,MRG488,Collection
+Caribou,Suddenly,"LP, Album, Club, Num, Ora",Merge Records,2020,2020,,MRG708,Collection
+Caribou,Honey,"LP, Ltd, Yel",Merge Records,2024,2024,,MRG848,Collection
+Hugh Masekela,Hugh Masekela's Next Album,"LP, Album",MGM Records,1966,1966,,SE-4415,Collection
+Rockwell,Somebody's Watching Me,"12""",Motown,1983,1984,Original US release early 1984,4515MG,Singles
+Neil Frances (2),Took A While / Stay Strong Play Long,"LP, EP, Blu + LP, EP, Pin + RSD, Comp, Ltd",Nettwerk,2025,,Could not confirm; EP compilation,31740 1,Collection
+"Black Country, New Road",For The First Time,"LP, Album",Ninja Tune,2021,2021,,ZEN269,Collection
+Carole King,Tapestry,"LP, Album, Smo","Ode Records (2), Ode Records (2)",1971,1971,,"ODE SP 77009, SP-77009",Collection
+Chet Baker,Chet Baker Sings,"LP, Album, Ltd, RE, RM, 180",Pan Am Records,2011,1956,,9152236,Collection
+Kylie Minogue,Fever,"LP, Album, RE, 180",Parlophone,2022,2001,,0190295846428,Collection
+Geese (11),Getting Killed,"LP, Album, Cle","Partisan Records, Partisan Records, Play It Again Sam",2025,2025,,"PTPS60LPX, PTPS60LP",Collection
+Cameron Winter,Heavy Metal,"LP, Album, Ltd, Cle","Partisan Records, Play It Again Sam",2025,2025,,PTPS50LP,Collection
+Nina Simone,High Priestess Of Soul,"LP, Album, RE, 180","Philips, Philips",2016,1963,,"0600753605745, PHS 600-219",Collection
+Nina Simone,I Put A Spell On You,"LP, Album, RE","Philips, Philips",2016,1965,,"PHS 600-172, 0600753605707",Collection
+Atlanta Rhythm Section,Champagne Jam,"LP, Album, San","Polydor, BGO Records (2)",1978,1978,,PD-1-6134,Collection
+Atlanta Rhythm Section,A Rock And Roll Alternative,"LP, Album, Pit","Polydor, Polydor",1976,1976,,"PD-1-6080, 2391 255",Collection
+Alvvays,Antisocialites,"LP, Album, RE, Cle",Polyvinyl Record Company,2021,2017,,PRC-334,Collection
+Heart,Little Queen,"LP, Album, San",Portrait,1977,1977,,JR 34799,Collection
+Sharon Redd,Redd Hott,"LP, Album",Prelude Records,1982,1982,,PRL 14106,Collection
+Sylvan Esso,Sylvan Esso,"LP, Album, RE",Psychic Hotline,2022,2014,,PSY-012,Collection
+Sylvan Esso,Ow ∞,"LP, Album, Ang",Psychic Hotline,2026,2026,Unverified (2026 per CSV),PSY0 69,Collection
+Rhye,Woman,"LP, Album, RE",Republic Records,2013,2013,Pressing year was 0 in export; set to original year,B001813501,Collection
+Alt-J,An Awesome Wave,"LP, Ltd, Gat",Rhino Records (2),2026,2012,,SYEOR26,Collection
+Madonna,Veronica Electronica,"LP, Album, EP, Comp, RM, Cle","Rhino Records (2), Maverick, Warner Records",2025,2022,2022 RSD remix compilation,"RCV5 725398, 603497810437",Collection
+Chaka Khan,Epiphany: The Best Of Chaka Khan,"LP, Comp, Ltd, RE, Bur","Rhino Records (2), Rhino Records (2), Reprise Records, Reprise Records",2021,1996,,"RCV1 645759, 603497845170",Collection
+Pinegrove,Marigold,"LP, Album, Ltd, Yel",Rough Trade,2020,2020,,RT0082LPE,Collection
+Lauryn Hill,The Miseducation Of Lauryn Hill,"2xLP, Album, RE, NRP","Ruffhouse Records, Columbia",2014,1998,,88875021571,Collection
+Pinegrove,Cardinal,"LP, Album",Run For Cover Records (2),2016,2016,,RFC:147,Collection
+Turnover (3),Peripheral Vision,"LP, Album, RP, Mag","Run For Cover Records (2), Run For Cover Records (2)",2019,2015,,"RFC122, RFC:122",Collection
+Big Thief,Capacity,"LP, Album",Saddle Creek,2017,2017,,LBJ-255,Collection
+The War On Drugs,Lost In The Dream,"2xLP, Album, RE",Secretly Canadian,2014,2014,Pressing year was 0 in export; set to original year,SC310,Collection
+Madonna,Like A Prayer,"LP, Album, RE",Sire,2020,1989,,8122-79735-7,Collection
+Madonna,Madonna,"LP, Album, RE, 180",Sire,2016,1983,,R1-23867,Collection
+The Pretenders,Pretenders,"LP, Album, Los",Sire,1980,1980,,SRK 6083,Collection
+Madonna,Who's That Girl,"12"", Maxi, Spe","Sire, Sire",1987,1987,,"0-20692, 9 20692-0",Singles
+Madonna,Madonna,"LP, Album, Win","Sire, Sire",1983,1983,,"1-23867, 9 23867-1",Collection
+Madonna,True Blue,"LP, Album, Spe","Sire, Sire",1986,1986,,"1-25442, 9 25442-1",Collection
+Madonna,Like A Virgin,"LP, Album, Ltd, RE, Cle","Sire, Sire",2019,1984,,"RCV5-25157, 603497849284",Collection
+Yazoo,Upstairs At Eric's,"LP, Album, Jac","Sire, Sire, Mute",1982,1982,,"1-23737, 9 23737-1",Collection
+The Pretenders,Get Close,"LP, Album, Spe","Sire, Sire, Real Records (2)",1986,1986,,"9 25488-1, 1-25488",Collection
+The Pretenders,Learning To Crawl,"LP, Album, Car","Sire, Sire, Real Records (2), Real Records (2)",1984,1984,,"9 23980-1, 1-23980",Collection
+Madonna,Rescue Me,"12"", Maxi","Sire, Warner Bros. Records",1991,1991,,"9 21813-0, 0-21813",Singles
+Madonna,Keep It Together,"12"", Promo","Sire, Warner Bros. Records",1990,1990,,PRO-A-3791,Singles
+The Fifth Dimension,The Age Of Aquarius,"LP, Album, Res",Soul City (2),1969,1969,,SCS-92005,Collection
+Beach House,Once Twice Melody,"2xLP, Album, Sil",Sub Pop,2022,2022,,SP 1470,Collection
+Beach House,Teen Dream,"2xLP, Album, RE, RP",Sub Pop,2022,2010,,SP 845,Collection
+Beach House,Bloom,"2xLP, Album",Sub Pop,2012,2012,,SP 965,Collection
+Beach House,Depression Cherry ,"LP, Album, RE, RP, Met",Sub Pop,2022,2015,,SP1122,Collection
+The Isley Brothers,Go For Your Guns,"LP, Album, Pit",T-Neck,1977,1977,,PZ 34432,Collection
+Marvin Gaye,What's Going On,"LP, Album, RE, Gat","Tamla, Tamla",2012,1971,,"5300221, 530 022-1",Collection
+Marvin Gaye,"Here, My Dear","2xLP, Album, Gat","Tamla, Tamla",1978,1978,,"T 364LP2, T 364 LP2",Collection
+The Chosen Few,Everybody Plays The Fool,"LP, Album, Ltd, Num, RE, Ora","Trojan Records, Music On Vinyl",2021,,Could not confirm,MOVLP2774,Collection
+Dee Clark,The Best Of Dee Clark,"LP, Comp",Vee Jay Records,1962,1962,,SR 1047,Collection
+The Human League,Dare,"LP, Album, CBS",Virgin,1981,1981,,V2192,Collection
+Fleetwood Mac,Fleetwood Mac Live,"2xLP, Album, Spe",Warner Bros. Records,1980,1980,,2WB 3500,Collection
+James Taylor (2),Mud Slide Slim And The Blue Horizon,"LP, Album, Pit",Warner Bros. Records,1971,1971,,BS 2561,Collection
+The Doobie Brothers,The Captain And Me,"LP, Album",Warner Bros. Records,1973,1973,,BS 2694,Collection
+James Taylor (2),Gorilla,"LP, Album, Ter",Warner Bros. Records,1975,1975,,BS 2866,Collection
+The Doobie Brothers,Minute By Minute,"LP, Album, Gol",Warner Bros. Records,1978,1978,,BSK 3193,Collection
+Fleetwood Mac,The Alternate Tango In The Night,"LP, Album, RSD, Ltd, RM, 180",Warner Bros. Records,2018,2018,Alternate/outtake version of 1987 album; released 2017-18,R1 564451,Collection
+Chaka Khan,Chaka,"LP, Album, Gol","Warner Bros. Records, Tattoo Records (2)",1978,1978,,BSK 3245,Collection
+Fleetwood Mac,Tango In The Night,"LP, Album, All","Warner Bros. Records, Warner Bros. Records",1987,1987,,"9 25471-1, 1-25471",Collection
+James Taylor (2),Sweet Baby James,"LP, Album, Ter","Warner Bros. Records, Warner Bros. Records",1970,1970,,"WS 1843, 1843",Collection
+New Order,"Power, Corruption & Lies","LP, Album, RE","Warner Music, Warner Music",2025,1983,,"FACT SEVENTY FIVE, FACT • 75",Collection
+Fleetwood Mac,Rumours,"LP, Album, Ltd, RE, RP, Gol",Warner Records,2021,1977,,RCD1 517786,Collection
+Tevin Campbell,I'm Ready,"LP, Album, RE, RM, Blu","Warner Records, Qwest Records, Real Gone Music",2026,1993,,RGM-2079,Collection
+Madonna,Confessions On A Dance Floor,"2xLP, Album, Ltd, P/Mixed, RE, Sil","Warner Records, Warner Records",2026,2005,Original 2005; this is a later anniversary-era pressing,"RCV1 49460, 603497808120",Collection
+Stereolab,Dots And Loops (Expanded Edition),"2xLP, Album, RE, RM + LP + Exp","Warp Records, Duophonic Ultra High Frequency Disks",2019,1997,,D-UHF-D17R,Collection
+Radiohead,In Rainbows,"LP, Album, RE, GZ ",XL Recordings,2017,2007,,XLLP 324,Collection
+Kaytranada,99.9%,"2xLP, Album",XL Recordings,2016,2016,,XLLP 765,Collection`;
+  function curTheme(){
+    var t=document.documentElement.getAttribute("data-theme");
+    if(t==="dark"||t==="light")return t;
+    return (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";
+  }
+  function paintTheme(){
+    var d=curTheme()==="dark",b=document.getElementById("themeBtn");
+    b.textContent=d?"\u2600\ufe0f":"\u{1F319}";
+    b.setAttribute("aria-pressed",d?"true":"false");
+    b.title=d?"Switch to light mode":"Switch to dark mode";
+  }
+  document.getElementById("themeBtn").onclick=function(){
+    var n=curTheme()==="dark"?"light":"dark";
+    document.documentElement.setAttribute("data-theme",n);
+    try{localStorage.setItem("spin_theme",n)}catch(e){}
+    paintTheme();
+  };
+  paintTheme();
+  var records=[], history=[], seen={}, current=null, nowKey=read(KEY_N)||"", ART=read(KEY_A)||{}, ABOUT=read(KEY_B)||{}, sampleFn=null;
+  var $=function(id){return document.getElementById(id)};
+
+  function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+  function read(k){try{var s=localStorage.getItem(k);return s?JSON.parse(s):null}catch(e){return null}}
+
+  function parseCSV(text){
+    var rows=[],row=[],f="",q=false,i,c;
+    text=text.replace(/^\uFEFF/,"");
+    for(i=0;i<text.length;i++){
+      c=text[i];
+      if(q){
+        if(c=='"'){ if(text[i+1]=='"'){f+='"';i++} else q=false }
+        else f+=c;
+      } else if(c=='"') q=true;
+      else if(c==","){row.push(f);f=""}
+      else if(c=="\n"||c=="\r"){
+        if(c=="\r"&&text[i+1]=="\n")i++;
+        row.push(f);f="";
+        if(row.length>1||row[0]!=="")rows.push(row);
+        row=[];
+      } else f+=c;
+    }
+    if(f!==""||row.length){row.push(f);rows.push(row)}
+    return rows;
+  }
+
+  function fromText(text){
+    var first=text.split(/\r?\n/)[0]||"";
+    if(/artist/i.test(first)&&/title/i.test(first)&&first.indexOf(",")>-1){
+      var rows=parseCSV(text), h=rows[0].map(function(x){return x.trim().toLowerCase()});
+      var ix=function(n){return h.indexOf(n)};
+      var a=ix("artist"),t=ix("title"),l=ix("label"),fm=ix("format"),y=[ix("original release year"),ix("original year"),ix("original_release_year")].filter(function(n){return n>-1})[0],py=[ix("pressing year (released)"),ix("pressing year"),ix("released")].filter(function(n){return n>-1})[0],fo=ix("collectionfolder"),id=ix("release_id"),g=["genre","genres","style","styles"].map(ix).filter(function(n){return n>-1})[0];
+      if(g===undefined)g=-1;if(y===undefined)y=py===undefined?-1:py;if(py===undefined)py=-1;
+      return rows.slice(1).filter(function(r){return r[t]}).map(function(r){
+        return {artist:clean(r[a]),title:r[t].trim(),label:l>-1?clean(r[l]):"",format:fm>-1?r[fm].trim():"",
+          year:(y>-1&&parseInt(r[y],10))||(py>-1&&parseInt(r[py],10))||0,press:py>-1?parseInt(r[py],10)||0:0,folder:fo>-1?r[fo].trim():"",id:id>-1?r[id]:"",genre:g>-1?(r[g]||"").trim():""};
+      });
+    }
+    return text.split(/\r?\n/).map(function(s){return s.trim()}).filter(Boolean).map(function(s){
+      var gp=s.split(/\s*\|\s*/),gn=gp[1]||"";s=gp[0];var m=s.split(/\s+[-–—]\s+/);
+      return m.length>1?{artist:m[0],title:m.slice(1).join(" - "),label:"",format:"",year:0,folder:"",id:"",genre:gn}
+        :{artist:"",title:s,label:"",format:"",year:0,folder:"",id:"",genre:gn};
+    });
+  }
+  function clean(s){return (s||"").replace(/\s\(\d+\)$/,"").trim()}
+
+  function fill(sel,vals,all){
+    var cur=sel.value;
+    sel.innerHTML="";
+    [all].concat(vals).forEach(function(v){var o=document.createElement("option");o.value=v===all?"":v;o.textContent=v;sel.appendChild(o)});
+    sel.value=cur;
+  }
+  function uniq(arr){return Array.from(new Set(arr.filter(Boolean))).sort()}
+  function fmtMain(f){return (f||"").split(",")[0].trim()}
+  function genres(r){return (r.genre||"").split(/[,;]/).map(function(x){return x.trim()}).filter(Boolean)}
+  function decade(y){return y?Math.floor(y/10)*10+"s":""}
+
+  /* Mood filter: the vibe words are grouped into clusters (see MOODS); only clusters that occur in this collection are offered */
+  function fillMood(list){
+    var present={};
+    list.forEach(function(r){moods(vwords(r)).forEach(function(i){present[i]=1})});
+    var sel=$("fMood"),cur=sel.value;
+    sel.innerHTML="";
+    var o=document.createElement("option");o.value="";o.textContent="Any mood";sel.appendChild(o);
+    Object.keys(present).forEach(function(i){
+      var op=document.createElement("option");op.value=i;op.textContent=MOODS[i].slice(0,3).join(" / ");sel.appendChild(op);
+    });
+    sel.value=present[cur]?cur:"";
+  }
+  /* Title corrections, applied whenever a collection is loaded (so they also survive re-importing the CSV).
+     Records are matched by artist, title and format, since the CSV has no unique id for them. */
+  var RENAMES=[{artist:"Madonna",title:"Confessions II",format:/2xLP/i,also:/Dlx|Deluxe/i,to:"Confessions II (Expanded Edition)"},
+    {artist:"Madonna",title:"Confessions II",format:/\bPic\b/i,also:/./,to:"Confessions II (Picture Disc)"},
+    {artist:"Madonna",title:"Madonna",format:/\bRE\b/,also:/./,to:"Madonna (Repressing)"}];
+  function setRecords(list){
+    list.forEach(function(r){
+      RENAMES.forEach(function(x){
+        if(r.artist===x.artist&&r.title===x.title&&x.format.test(r.format||"")&&x.also.test(r.format||""))r.title=x.to;
+      });
+    });
+    records=list;
+    store(KEY_C,list);
+    seen={};
+    fill($("fFormat"),uniq(list.map(function(r){return fmtMain(r.format)})),"Any format");
+    fillArtist(list);
+    fill($("fFolder"),uniq(list.map(function(r){return r.folder})),"Any folder");
+    fill($("fDecade"),uniq(list.map(function(r){return decade(r.year)})),"Any decade");
+    var gl=uniq([].concat.apply([],list.map(genres)));
+    fill($("fGenre"),gl,"Any genre");
+    $("genreWrap").hidden=!gl.length;
+    fillGroup(list);
+    fillMood(list);
+    renderNow();
+    var has=list.length>0;
+    $("filters").hidden=!has; $("pick").disabled=!has; $("logCard").hidden=!has;
+    $("status").textContent=has?list.length+" records loaded.":"Load your collection to get started.";
+    if(has)$("loader").open=false;
+    updatePool();
+  }
+
+  var FILTER_IDS=["fFormat","fArtist","fFolder","fDecade","fGenre","fGroup","fMood"];
+  function pool(){
+    var mo=$("fMood").value;
+    var f=$("fFormat").value,fo=$("fFolder").value,d=$("fDecade").value,ge=$("fGenre").value,gg=$("fGroup").value,ar=$("fArtist").value;
+    return records.filter(function(r){
+      return (!ar||r.artist===ar)&&(!f||fmtMain(r.format)===f)&&(!fo||r.folder===fo)&&(!d||decade(r.year)===d)&&(!ge||genres(r).indexOf(ge)>-1)&&(!gg||cats(r).indexOf(gg)>-1)&&(!mo||moods(vwords(r)).indexOf(mo)>-1);
+    });
+  }
+  function key(r){return r.id||(r.artist+"|"+r.title)}
+  function updatePool(){
+    var p=pool();
+    var any=FILTER_IDS.some(function(id){return $(id).value});
+    $("clearFilters").hidden=!any;
+    $("pool").textContent=p.length+" record"+(p.length===1?"":"s")+" match your filters.";
+    $("pick").disabled=p.length===0;
+    renderList(p);
+  }
+
+  /* Genre / vibe notes, written from general public knowledge of each album (Wikipedia-style genre labels). Format: Artist|Title|Genre · Genre — vibe */
+  var VIBE_DATA=String.raw`Big Thief|Dragon New Warm Mountain I Believe In You|Indie folk · folk rock — sprawling, intimate
+Cocteau Twins|Heaven Or Las Vegas|Dream pop · ethereal — shimmering, luminous
+Deerhunter|Halcyon Digest|Indie rock · dream pop — hazy, nostalgic
+Steely Dan|Aja|Jazz rock · soft rock — polished, sophisticated
+MJ Lenderman|Manning Fireworks|Indie rock · alt-country — loose, wry
+Aphex Twin|Selected Ambient Works 85-92|Ambient techno · IDM — dreamy, hypnotic
+Taylor Dayne|Tell It To My Heart|Dance-pop · freestyle — big, glossy
+Broken Social Scene|Broken Social Scene|Indie rock — dense, sprawling
+The Avalanches|Since I Left You|Plunderphonics · sampledelia — joyful, kaleidoscopic
+Joni Mitchell|Court And Spark|Folk pop · jazz-pop — warm, reflective
+Otis Redding|Pain In My Heart|Southern soul · R&B — raw, heartfelt
+Roberta Flack|Feel Like Makin' Love|Soul · quiet storm — smooth, sensual
+Crosby, Stills, Nash & Young|So Far|Folk rock · harmony pop — warm, laid-back
+Clarence Carter|Patches|Southern soul · blues — gritty, soulful
+Phil Collins|Hello, I Must Be Going!|Pop rock · blue-eyed soul — moody, dramatic
+Arthur Russell|Love Is Overtaking Me (Redux)|Folk · country · art pop — tender, off-kilter
+Dave Matthews Band|Crash|Jam band · pop rock — loose, groove-driven
+Beach Fossils|Somersault|Indie rock · jangle pop — breezy, melodic
+Beach Fossils|The Other Side Of Life: Piano Ballads|Chamber pop · piano ballads — hushed, wistful
+Tom Misch|Full Circle|Soft pop · soul · folk-pop — warm, reflective
+Herbie Hancock|Empyrean Isles|Hard bop · post-bop jazz — cool, adventurous
+DIIV|Oshin|Indie rock · dream pop — shimmering, driving
+Wild Nothing|Gemini|Dream pop · indie pop — hazy, jangly
+Cher|Take Me Home|Disco · dance-pop — glittery, campy
+Donna Summer|On The Radio - Greatest Hits Volumes I & II|Disco · dance-pop — sleek, euphoric
+Chuck Berry|The London Chuck Berry Sessions|Rock and roll · blues rock — rowdy, live-wire
+Herbie Hancock|Head Hunters|Jazz-funk · fusion — groovy, deep
+James Taylor|JT|Soft rock · singer-songwriter — warm, mellow
+LCD Soundsystem|Electric Lady Sessions|Dance-punk · electronic rock — live, driving
+LCD Soundsystem|This Is Happening|Dance-punk · electronic — sardonic, propulsive
+This Is Lorelei|Box for Buddy, Box for Star|Indie pop · lo-fi — tender, quirky
+Silver Jews|American Water|Indie rock · alt-country — wry, lo-fi
+Peter Brown|A Fantasy Love Affair|Disco · dance — sultry, danceable
+Marina & The Diamonds|Electra Heart|Electropop · synth-pop — campy, glossy
+Patrice Rushen|Pizzazz|Funk · soul · jazz-funk — slick, bubbly
+Grover Washington, Jr.|Winelight|Smooth jazz · jazz-funk — mellow, silky
+Carly Simon|No Secrets|Soft rock · singer-songwriter — confessional, polished
+Grover Washington, Jr.|The Best Is Yet To Come|Smooth jazz · soul — mellow, silky
+Naked Eyes|Naked Eyes|New wave · synth-pop — sleek, melodic
+Pet Shop Boys|West End Girls|Synth-pop · Hi-NRG — cool, deadpan
+Teena Marie / Kelly Marie|Lovergirl / Feels Like I'm In Love|Funk-pop · disco — bouncy, dancefloor
+The Clash|London Calling|Punk rock · post-punk · reggae — urgent, eclectic
+Michael Jackson|Thriller|Pop · funk · post-disco — slick, iconic
+Sade|Diamond Life|Sophisti-pop · smooth jazz — smoky, cool
+New Order|Substance|Synth-pop · dance-rock — pulsing, bittersweet
+Joy Division|Unknown Pleasures|Post-punk · gothic rock — stark, brooding
+Loleatta Holloway|Hit And Run|Disco · soul — soaring, dancefloor
+Loleatta Holloway|Love Sensation|Disco · soul — soaring, dancefloor
+R.E.M.|Fables Of The Reconstruction|Jangle pop · alternative rock — murky, Southern gothic
+R.E.M.|Murmur|Jangle pop · alternative rock — hazy, mysterious
+John Coltrane|Sun Ship|Free jazz · avant-garde jazz — fierce, spiritual
+Dollar Brand|Ode To Duke Ellington|Jazz · South African jazz — lyrical, graceful
+Ellie Goulding|Halcyon|Electropop · synth-pop — soaring, dramatic
+Daphni|Cherry|House · electronic dance — playful, club-ready
+Britney Spears|Oops!...I Did It Again|Teen pop · dance-pop — bubblegum, glossy
+Grover Washington, Jr.|Inner City Blues|Soul jazz · jazz-funk — smooth, bluesy
+Grover Washington, Jr.|Feels So Good|Jazz-funk · soul jazz — mellow, groovy
+Luther Vandross|Never Too Much|R&B · quiet storm — silky, romantic
+Sylvan Esso|WITH|Electropop · synth-pop — pulsing, warm
+Sylvan Esso|Free Love|Electropop · synth-pop — intimate, danceable
+Sylvan Esso|No Rules Sandy|Electropop · indie pop — quirky, playful
+William Onyeabor|Who Is William Onyeabor?|Afro-funk · synth funk — hypnotic, psychedelic
+Interpol|Turn On The Bright Lights|Post-punk revival · indie rock — brooding, nocturnal
+Car Seat Headrest|Teens Of Denial|Indie rock · lo-fi — anxious, anthemic
+This Is Lorelei|The Singer In My Band|Indie folk · Americana · lo-fi — offbeat, tender
+Yo La Tengo|Fade|Indie rock · dream pop — warm, hushed
+Madonna|Nothing Fails|Dance-pop · house — euphoric, club-ready
+Madonna|Erotica|Dance-pop · house — sultry, provocative
+Madonna|Bedtime Stories|R&B · pop — smooth, sensual
+Madonna|Ray Of Light|Electronica · dance-pop — shimmering, spiritual
+Madonna|Music|Electropop · dance-pop — sleek, club-ready
+Madonna|American Life|Electropop · folktronica — moody, acoustic-meets-electronic
+Madonna|Confessions II|Dance-pop · house · electropop — glossy, dancefloor, celebratory
+Bronski Beat|Truthdare Doubledare|Synth-pop · Hi-NRG — soaring, danceable
+Sylvester|M-1015|Hi-NRG · dance — sleek, falsetto-led
+Patrick Cowley Featuring Sylvester|Do Ya Wanna Funk|Hi-NRG · disco — pulsing, electronic
+Caribou|Swim|Electronic · psychedelic dance — fluid, hypnotic
+Caribou|Our Love|Electronic · house — warm, emotional
+Caribou|Suddenly|Electronic · dance · R&B — playful, eclectic
+Caribou|Honey|Electronic · dance — hypnotic, groovy
+Hugh Masekela|Hugh Masekela's Next Album|Jazz · Afro-jazz — bright, melodic
+Rockwell|Somebody's Watching Me|Synth-pop · dance-pop — paranoid, catchy
+Neil Frances|Took A While / Stay Strong Play Long|Indie pop · electronic — breezy, melodic
+Black Country, New Road|For The First Time|Post-rock · art rock — frantic, jagged
+Carole King|Tapestry|Soft rock · singer-songwriter — warm, timeless
+Chet Baker|Chet Baker Sings|Cool jazz · vocal jazz — hushed, dreamy
+Kylie Minogue|Fever|Dance-pop · electropop — sleek, glittering
+Geese|Getting Killed|Indie rock · art rock · post-punk — frantic, raw, unpredictable
+Cameron Winter|Heavy Metal|Art rock · indie folk — theatrical, raw, melancholic
+Nina Simone|High Priestess Of Soul|Soul · jazz · blues — commanding, intense
+Nina Simone|I Put A Spell On You|Soul · jazz · blues — commanding, intense
+Atlanta Rhythm Section|Champagne Jam|Southern rock · soft rock — smooth, laid-back
+Atlanta Rhythm Section|A Rock And Roll Alternative|Southern rock · soft rock — smooth, laid-back
+Alvvays|Antisocialites|Indie pop · jangle pop — dreamy, wistful
+Heart|Little Queen|Hard rock · arena rock — powerful, soaring
+Sharon Redd|Redd Hott|Disco · dance — glossy, dancefloor
+Sylvan Esso|Sylvan Esso|Electropop · indie pop — minimalist, catchy
+Sylvan Esso|Ow ∞|Electropop · indie pop — brash, danceable, collage-like
+Rhye|Woman|Sophisti-pop · downtempo R&B — silky, sensual
+Alt-J|An Awesome Wave|Art rock · indie rock — quirky, angular
+Madonna|Veronica Electronica|House · dance remixes — club-ready
+Chaka Khan|Epiphany: The Best Of Chaka Khan|Funk · R&B · soul — fiery, powerful
+Pinegrove|Marigold|Indie rock · emo · alt-country — earnest, warm
+Lauryn Hill|The Miseducation Of Lauryn Hill|Neo-soul · hip hop — soulful, confessional
+Pinegrove|Cardinal|Indie rock · alt-country · emo — earnest, warm
+Turnover|Peripheral Vision|Dream pop · indie rock · emo — hazy, lush
+Big Thief|Capacity|Indie folk — hushed, intimate
+The War On Drugs|Lost In The Dream|Heartland rock · indie rock — hazy, expansive
+Madonna|Like A Prayer|Pop · dance-pop · funk — bold, spiritual
+Madonna|Madonna|Dance-pop · post-disco — bright, danceable
+The Pretenders|Pretenders|New wave · punk rock · power pop — tough, catchy
+Madonna|Who's That Girl|Dance-pop — bouncy, bright
+Madonna|True Blue|Dance-pop · synth-pop — bright, bubbly
+Madonna|Like A Virgin|Dance-pop · new wave — playful, glossy
+Yazoo|Upstairs At Eric's|Synth-pop · new wave — icy, soulful
+The Pretenders|Get Close|New wave · pop rock — polished, punchy
+The Pretenders|Learning To Crawl|New wave · rock — gritty, emotional
+Madonna|Rescue Me|Dance-pop · house — club-ready
+Madonna|Keep It Together|Funk-pop · dance — groovy
+The Fifth Dimension|The Age Of Aquarius|Sunshine pop · soul — lush, groovy
+Beach House|Once Twice Melody|Dream pop · baroque pop — lush, cinematic
+Beach House|Teen Dream|Dream pop · indie — lush, yearning
+Beach House|Bloom|Dream pop — lush, dreamy
+Beach House|Depression Cherry|Dream pop — hazy, slow-burning
+The Isley Brothers|Go For Your Guns|Funk · soul · R&B — smooth, groovy
+Marvin Gaye|What's Going On|Soul · psychedelic soul — lush, socially conscious
+Marvin Gaye|Here, My Dear|Soul · funk · R&B — raw, confessional
+Dee Clark|The Best Of Dee Clark|R&B · early soul · doo-wop — smooth, retro
+The Human League|Dare|Synth-pop · new wave — sleek, dramatic
+Fleetwood Mac|Fleetwood Mac Live|Soft rock · pop rock — warm, polished
+James Taylor|Mud Slide Slim And The Blue Horizon|Folk rock · singer-songwriter — warm, mellow
+The Doobie Brothers|The Captain And Me|Rock · country rock — driving, harmony-rich
+James Taylor|Gorilla|Soft rock · singer-songwriter — warm, mellow
+The Doobie Brothers|Minute By Minute|Yacht rock · blue-eyed soul — smooth, jazzy
+Fleetwood Mac|The Alternate Tango In The Night|Soft rock · pop rock — shimmering, polished
+Chaka Khan|Chaka|Funk · R&B · disco — fiery, powerful
+Fleetwood Mac|Tango In The Night|Soft rock · synth-pop — shimmering, polished
+James Taylor|Sweet Baby James|Folk · singer-songwriter — warm, mellow
+New Order|Power, Corruption & Lies|Synth-pop · post-punk — pulsing, melancholic
+Fleetwood Mac|Rumours|Soft rock · pop rock — warm, confessional
+Tevin Campbell|I'm Ready|New jack swing · R&B — smooth, youthful
+Madonna|Confessions On A Dance Floor|Dance-pop · electronic — euphoric, nonstop
+Stereolab|Dots And Loops (Expanded Edition)|Krautrock-pop · lounge · post-rock — groovy, retro-futurist
+Radiohead|In Rainbows|Art rock · alternative rock — intimate, textured
+Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
+  var vibeMap=null;
+  function vkey(a,t){
+    var n=function(s){return (s||"").toLowerCase().replace(/\([^)]*\)/g,"").replace(/\s+/g," ").trim()};
+    return n(a)+"|"+n(t);
+  }
+  function vibe(r){
+    if(!vibeMap){
+      vibeMap={};
+      VIBE_DATA.split("\n").forEach(function(l){
+        var p=l.split("|");if(p.length>2)vibeMap[vkey(p[0],p[1])]=p.slice(2).join("|");
+      });
+    }
+    return vibeMap[vkey(r.artist,r.title)]||r.genre||"";
+  }
+
+  /* Genre groups: a record joins every group whose pattern matches the genre part of its note (before the dash) */
+  var CATS=[
+    ["Indie & alternative",/indie|alternative|jangle|lo-fi|\bemo\b|power pop|post-punk revival/],
+    ["Dream pop & shoegaze",/dream pop|ethereal|shoegaze|baroque pop|chamber pop/],
+    ["Folk & country",/\bfolk\b|singer-songwriter|country|heartland/],
+    ["Classic & soft rock",/soft rock|yacht rock|southern rock|arena rock|hard rock|rock and roll|jam band|(^|· )rock( ·|$)|pop rock|blues rock/],
+    ["Punk & post-punk",/punk|gothic/],
+    ["New wave & synth-pop",/new wave|synth-pop/],
+    ["Electronic & dance",/electronic|house|techno|\bidm\b|ambient|electropop|electronica|plunderphonics|remixes|dance-punk|dance-rock|psychedelic dance|downtempo|folktronica|(^|· )dance( ·|$)/],
+    ["Disco & Hi-NRG",/disco|hi-nrg/],
+    ["Pop",/(^|· )pop( ·|$)|dance-pop|teen pop|funk-pop|folk pop|jazz-pop|sophisti-pop|harmony pop|sunshine pop|electropop|synth-pop|freestyle|pop rock/],
+    ["Soul & R&B",/soul|r&b|quiet storm|new jack swing|doo-wop/],
+    ["Funk",/funk/],
+    ["Jazz",/jazz|\bbop\b|fusion/],
+    ["Art rock & experimental",/art rock|post-rock|avant-garde|krautrock|art pop|sampledelia|plunderphonics|free jazz/]
+  ];
+  function cats(r){
+    var g=(vibe(r)||"").split(" \u2014 ")[0].toLowerCase();
+    if(!g)return [];
+    return CATS.filter(function(c){return c[1].test(g)}).map(function(c){return c[0]});
+  }
+  /* Artist filter: alphabetical ignoring a leading "The", with record counts */
+  function fillArtist(list){
+    var sel=$("fArtist"),cur=sel.value,counts={};
+    list.forEach(function(r){var a=r.artist||"";if(a)counts[a]=(counts[a]||0)+1});
+    var sortKey=function(a){return a.toLowerCase().replace(/^the\s+/,"")};
+    var names=Object.keys(counts).sort(function(a,b){var x=sortKey(a),y=sortKey(b);return x<y?-1:x>y?1:0});
+    sel.innerHTML="";
+    var o=document.createElement("option");o.value="";o.textContent="Any artist";sel.appendChild(o);
+    names.forEach(function(n){
+      var op=document.createElement("option");op.value=n;op.textContent=n+(counts[n]>1?" ("+counts[n]+")":"");sel.appendChild(op);
+    });
+    sel.value=cur;if(sel.value!==cur)sel.value="";
+  }
+  function fillGroup(list){
+    var sel=$("fGroup"),cur=sel.value,counts={};
+    list.forEach(function(r){cats(r).forEach(function(c){counts[c]=(counts[c]||0)+1})});
+    sel.innerHTML="";
+    var o=document.createElement("option");o.value="";o.textContent="Any genre group";sel.appendChild(o);
+    CATS.forEach(function(c){
+      if(!counts[c[0]])return;
+      var op=document.createElement("option");op.value=c[0];op.textContent=c[0]+" ("+counts[c[0]]+")";sel.appendChild(op);
+    });
+    sel.value=cur;if(sel.value!==cur)sel.value="";
+  }
+
+  /* Now playing: pick a record, see its details, see a Wikipedia summary */
+  function nowRec(){
+    for(var i=0;i<records.length;i++)if(key(records[i])===nowKey)return records[i];
+    return null;
+  }
+  /* Queue: records lined up to play next (stored as keys in this browser) */
+  var KEY_Q="spin_queue_v1", QUEUE=read(KEY_Q)||[], keepScroll=false;
+  function recByKey(k){for(var i=0;i<records.length;i++)if(key(records[i])===k)return records[i];return null}
+  function inQueue(r){return QUEUE.indexOf(key(r))>-1}
+  function paintQBtn(b,r){
+    var q=inQueue(r);
+    b.textContent=q?"\u2713 Queued":"\uff0b Queue";
+    b.setAttribute("aria-pressed",q?"true":"false");
+    b.title=q?"Remove from queue":"Add to queue";
+    b.setAttribute("aria-label",(q?"Remove from queue: ":"Add to queue: ")+r.title);
+  }
+  function queueBtn(r){
+    var b=document.createElement("button");b.type="button";b.className="btn ghost qbtn";
+    paintQBtn(b,r);
+    b.onclick=function(){toggleQueue(r)};
+    return b;
+  }
+  function qChanged(){
+    store(KEY_Q,QUEUE);renderQueue();keepScroll=true;updatePool();
+    var r=nowRec();if(r)renderPairs(r,NP);
+    var pr=pvRec();if(pr){renderPairs(pr,PV);paintQBtn($("pvQueue"),pr)}
+  }
+  function toggleQueue(r){
+    var k=key(r),i=QUEUE.indexOf(k);
+    if(i>-1)QUEUE.splice(i,1);else if(QUEUE.length<50)QUEUE.push(k);
+    qChanged();
+  }
+  function playNext(){
+    while(QUEUE.length){
+      var r=recByKey(QUEUE[0]);
+      if(r){setNow(r);return}
+      QUEUE.shift();
+    }
+    qChanged();
+  }
+  function renderQueue(){
+    var pruned=QUEUE.filter(function(k){return recByKey(k)});
+    if(pruned.length!==QUEUE.length){QUEUE=pruned;store(KEY_Q,QUEUE)}
+    $("qCard").hidden=!QUEUE.length;
+    $("qHead").textContent="Up next ("+QUEUE.length+")";
+    var nb=$("npNext");nb.hidden=!QUEUE.length;
+    if(QUEUE.length){var n0=recByKey(QUEUE[0]);nb.textContent="Play next \u25b6";nb.title=n0?"Next: "+n0.title:""}
+    try{renderMini()}catch(e){}
+    var ul=$("qList");ul.innerHTML="";
+    QUEUE.forEach(function(k,i){
+      var r=recByKey(k);if(!r)return;
+      var li=document.createElement("li");li.className="qrow";
+      var num=document.createElement("div");num.className="qn";num.textContent=String(i+1);
+      var box=document.createElement("div");box.className="mi";
+      var t=document.createElement("div");t.className="mt";t.textContent=r.title;
+      var a=document.createElement("div");a.className="ma";a.textContent=[r.artist,r.year].filter(Boolean).join(" \u00b7 ");
+      box.appendChild(t);box.appendChild(a);
+      var acts=document.createElement("div");acts.className="qacts";
+      function mk(txt,label,fn,dis){var b=document.createElement("button");b.type="button";b.className="btn ghost";b.textContent=txt;b.setAttribute("aria-label",label+": "+r.title);b.title=label;b.disabled=!!dis;b.onclick=fn;return b}
+      acts.appendChild(mk("\u2191","Move up",function(){QUEUE.splice(i,1);QUEUE.splice(i-1,0,k);qChanged()},i===0));
+      acts.appendChild(mk("\u25b6","Play now",function(){setNow(r)}));
+      acts.appendChild(mk("\u2715","Remove from queue",function(){QUEUE.splice(i,1);qChanged()}));
+      li.appendChild(num);li.appendChild(box);li.appendChild(acts);ul.appendChild(li);
+    });
+  }
+  $("qClear").onclick=function(){QUEUE=[];qChanged()};
+  $("npNext").onclick=playNext;
+  function setNow(r){
+    var k0=key(r),changed=k0!==nowKey;
+    nowKey=k0;store(KEY_N,nowKey);
+    if(changed)addSpin(k0);
+    var qi=QUEUE.indexOf(k0);if(qi>-1){QUEUE.splice(qi,1);store(KEY_Q,QUEUE);renderQueue()}
+    $("npMsg").textContent="";
+    loadWeb(r);
+    if(pvKey===k0)pvKey="";
+    renderNow();renderPreview();updatePool();
+    try{$("npCard").scrollIntoView({behavior:"smooth",block:"nearest"})}catch(e){}
+  }
+  function addPlayBtn(r){
+    var b=document.createElement("button");b.className="btn ghost";b.style.marginTop="12px";
+    b.textContent="\u25b6 Play this";b.onclick=function(){setNow(r)};
+    $("result").appendChild(b);
+  }
+  /* Two "views" share one card layout: Now playing (np) and the Learn more preview (pv) */
+  var pvKey="";
+  function pvRec(){return pvKey?recByKey(pvKey):null}
+  var NP={p:"np",k:function(){return nowKey},rec:function(){return nowRec()}};
+  var PV={p:"pv",k:function(){return pvKey},rec:function(){return pvRec()}};
+  /* Spin counter, favorites and standout tracks (all kept in this browser) */
+  var KEY_P="spin_plays_v1", KEY_F="spin_favs_v1", KEY_T="spin_tracklist_v1";
+  var KEY_NOTE="spin_notes_v1", NOTES=read(KEY_NOTE)||{};
+  /* Albums released after Claude's knowledge ends (mid-2026): summary and tracklist taken from published coverage and release listings.
+     Entered once per record; a "*" marks a standout track. */
+  var KNOWN=[{
+    artist:"madonna",titles:["confessions ii","confessions on a dance floor ii","confessions ii expanded edition","confessions ii picture disc"],
+    about:"Confessions II (also styled Confessions on a Dance Floor II) is the fifteenth studio album by Madonna, released on July 3, 2026 through Maverick and Warner Records. A sequel to her 2005 album Confessions on a Dance Floor, it reunites her with producer Stuart Price and leans on house, electropop and disco, with touches of techno and Latin sounds. The lead single, I Feel So Free, arrived in April 2026, followed by Bring Your Love with Sabrina Carpenter, and Feid appears on Read My Lips. Reviewers called it her strongest album since Rebel Heart (2015), though some found it uneven in places.",
+    aboutNote:"Summary based on press coverage of the July 2026 release (Official Charts, Clash, Euronews), not written from Claude\u2019s memory.",
+    tracks:"I Feel So Free*|Good For The Soul|One Step Away|Bring Your Love*|Danceteria*|Read My Lips|Everything*|Love Sensation|Love Without Words|Bizarre|School|Fragile*|My Sins Are My Savior|Betrayal|The Test|L.E.S. Girl",
+    tracksNote:"Standard 16-track edition, from published release listings (deluxe editions add bonus songs). Bold tracks are the standouts and link to a YouTube search.",
+    rev:2,
+    /* Editions whose tracklist differs: songs left off, and the note shown instead */
+    variants:{
+      "confessions ii":{omit:["Love Sensation","Betrayal","The Test","L.E.S. Girl"],note:"Edited to this edition: Love Sensation and the last three tracks are left off. Bold tracks are the standouts and link to a YouTube search."},
+      "confessions ii picture disc":{omit:["Love Sensation","Betrayal","The Test","L.E.S. Girl"],note:"Edited to this edition: Love Sensation and the last three tracks are left off. Bold tracks are the standouts and link to a YouTube search."}
+    }
+  },{
+    artist:"tom misch",titles:["full circle"],
+    about:"Full Circle is the new album by Tom Misch, released on March 27, 2026 through Beyond The Groove and AWAL after several years away. It was recorded to tape in pursuit of the warmth and clarity of 1970s hi-fi records, and written in London, Cornwall, Portugal and Nashville. It moves away from his earlier production-led style toward live instrumentation and classic pop songwriting, with collaborators including Matt Maltese, Ian Fitchuk and Adam Jaffrey. The first preview, Sisters With Me, is a reflective song about living with his sisters again as an adult, and Slow Tonight followed as another single.",
+    aboutNote:"Summary based on press coverage of the March 2026 release, not written from Claude’s memory.",
+    tracks:"Flowers In Bloom|Red Moon|Slow Tonight*|Sisters With Me*|Old Man|Running Away|Goldie|Echo From The Flames|Fear Can't Hurt Any More Than A Dream|Sultan Of Silence|Days Of Us",
+    tracksNote:"From published release listings. Bold tracks are the singles and link to a YouTube search."
+  },{
+    artist:"this is lorelei",titles:["the singer in my band"],
+    about:"The Singer in My Band is an album by This Is Lorelei, the project of Nate Amos, released on September 11, 2026 through Matador. Amos recorded, produced and performed it himself with a few guests, including his father, the bluegrass musician Bob Amos, on banjo on the title track, and his sister Sarah Amos on backing vocals. Matador describes it as taking the building blocks of the Great American Songbook and reshaping them into something strangely familiar and endearingly offbeat, and as his first true road record, since it was written while touring. The lead single is Billy Came Back.",
+    aboutNote:"Summary based on Matador’s description and press coverage of the September 2026 release, not written from Claude’s memory.",
+    tracks:"I Will Eat My Heart in the Morning Light|Oh No Now My|Billy Came Back*|Watching Heaven Fall|Sailing (Your Baby's Down)|The Singer in My Band*|Nitro|Hey Sarah Is It Gonna Rain Forever|The Kid With The Crown|And I Haven't Seen My Love in Quite A While|Don't You Cry in Lonesomeness",
+    tracksNote:"From a published tracklist (Stereogum). Bold tracks are the lead single and the title track, and link to a YouTube search."
+  },{
+    artist:"sylvan esso",titles:["ow"],
+    about:"Ow ∞ is the new album by Sylvan Esso, the duo of Amelia Meath and Nick Sanborn, released on September 11, 2026 through Psychic Hotline and described as their first in four years. They produced it themselves at their studio in Chapel Hill, North Carolina, with a large cast of collaborators that includes six drummers. The press release calls it a trust fall into our dystopian present, past and future, mixing a collage of found memories with an energetic, party-minded side. The singles are Hot Slob and Concrete Glen, which samples Sigur Rós’ Svefn-g-englar.",
+    aboutNote:"Summary based on the label’s press release and news coverage of the September 2026 release, not written from Claude’s memory.",
+    tracks:"Entertainment & Coca-Cola|Flood Season|Hot Slob*|Concrete Glen*|Back Again|Ribbon|Sledge|Right to Left|Good at Pain|Jessica|On & On|Plastic Sword",
+    tracksNote:"From the label’s press release. Bold tracks are the singles and link to a YouTube search."
+  },{
+    artist:"geese",titles:["getting killed"],
+    about:"Getting Killed is an album by Geese, released on September 26, 2025 through Partisan Records. It was recorded with producer Kenneth Blume in Los Angeles, and the single Taxes was produced by Kenny Beats. Reviewers described a mix of post-punk, funky rock and roll, classic rock and art-rock with a loose, raw production, hearing echoes of the early Velvet Underground and the Stooges. Reception was very positive, with Consequence calling it possibly one of the most creative indie rock records of the 2020s.",
+    aboutNote:"Summary based on press coverage and reviews (Stereogum, Consequence), not written from Claude’s memory.",
+    tracks:"Trinidad*|Cobra*|Husbands*|Getting Killed|Islands of Men|100 Horses|Half Real|Au Pays du Cocaine|Bow Down|Taxes*|Long Island City Here I Come",
+    tracksNote:"From a published tracklist (Stereogum). Bold tracks are the single and those reviewers singled out, and link to a YouTube search."
+  },{
+    artist:"cameron winter",titles:["heavy metal"],
+    about:"Heavy Metal is the debut solo album by Cameron Winter, the frontman of Geese, released through Partisan Records in December 2024 and produced by Loren Humphrey and Winter. It is an art-rock record built around piano-led ballads and soft rock, with Hammond organ, violin, bowed bass and flickers of electronics. Reviewers heard Captain Beefheart in its surreal imagery and Tom Waits and Leonard Cohen in its mournful tone, and the lead single was $0. Far Out gave it 4 out of 5.",
+    aboutNote:"Summary based on press coverage and a Far Out review, not written from Claude’s memory.",
+    tracks:"The Rolling Stones*|Nausicaä (Love Will Be Revealed)|Love Takes Miles|Drinking Age|Cancer of the Skull*|Try as I May|We're Thinking the Same Thing|Nina + Field of Cops*|$0*|Can't Keep Anything",
+    tracksNote:"From a published tracklist (Far Out). Bold tracks are the lead single and the highest-rated songs in that review, and link to a YouTube search."
+  },{
+    artist:"arthur russell",titles:["love is overtaking me redux"],
+    about:"Love Is Overtaking Me (Redux) is a remastered double-vinyl reissue of the earlier compilation of Arthur Russell recordings spanning 1973 to 1991, released on May 22, 2026 by Audika Records. It uses new masters made from a recently found tape reel, remastered by Timothy Stollenwerk at Stereophonic Mastering, with revised artwork by Molly Smith and liner notes by Tom Lee.",
+    aboutNote:"Summary based on the label’s release listing, not written from Claude’s memory.",
+    tracks:"Close My Eyes*|Goodbye Old Paint*|Maybe She|Oh Fernanda Why|Time Away|Nobody Wants a Lonely Heart|I Couldn't Say It to Your Face|This Time Dad You're Wrong|What It's Like|Eli|Hey! How Does Everybody Know|I Forget and I Can't Tell (Ballad of the Lights Pt. 1)|Habit of You|Janine|Big Moon|Your Motion Says|The Letter|Don't Forget About Me|Love Is Overtaking Me*|Planted a Thought|Love Comes Back",
+    tracksNote:"From a retailer listing in running order (the listing doesn’t show sides). Bold tracks are Claude’s picks of the best-known songs and link to a YouTube search."
+  },{
+    artist:"big thief",titles:["dragon new warm mountain i believe in you"],
+    tracks:"Change|Time Escaping*|Spud Infinity*|Certainty|Dragon New Warm Mountain I Believe in You|Sparrow|Little Things|Heavy Bend|Flower of Blood|Blurred View|Red Moon|Dried Roses|No Reason*|Wake Me Up to Drive|Promise Is a Pendulum|12,000 Lines|Simulation Swarm|Love Love Love|The Only Place|Blue Lightning",
+    tracksNote:"All 20 tracks, from a 2LP retailer listing (4AD). Bold tracks are songs released ahead of the album, and link to a YouTube search."
+  },{
+    artist:"madonna",titles:["veronica electronica"],
+    about:"Veronica Electronica is a vinyl-only mini-album of remixes of songs from Madonna’s 1998 album Ray of Light, announced in June 2025 with a vinyl release in July 2025 on silver vinyl. It collects club remixes by producers including BT and Sasha, Club 69 and Victor Calderone, and closes with the original demo of Gone, Gone, Gone.",
+    aboutNote:"Summary based on the Super Deluxe Edition announcement, not written from Claude’s memory.",
+    tracks:"Drowned World/Substitute For Love (BT & Sasha Bucklodge Ashram New Edit)|Ray Of Light (Sasha Twilo Mix Edit)|Skin (The Collaboration Remix Edit)|Nothing Really Matters (Club 69 Speed Mix Meets The Dub)|Sky Fits Heaven (Victor Calderone Future New Edit)|Frozen (Widescreen Mix and Drums)|The Power Of Good-Bye (Fabien's Good God Mix Edit)|Gone, Gone, Gone (Original Demo Version)",
+    tracksNote:"Side A is tracks 1–4 and side B is tracks 5–8, from the Super Deluxe Edition announcement. Remix titles are shown as released."
+  },{
+    artist:"patrick cowley featuring sylvester",titles:["do ya wanna funk"],
+    tracks:"Do Ya Wanna Funk|Do Ya Wanna Funk (Instrumental Version)|Do Ya Wanna Funk (Radio Version)",
+    tracksNote:"From a listing of the 1982 US 12-inch on Megatone Records (MT 102): the full version on side A, and the instrumental and radio versions on side B."
+  },{
+    artist:"loleatta holloway",titles:["hit and run"],
+    tracks:"Hit & Run|We're Getting Stronger",
+    tracksNote:"From a retailer listing of the 1977 12-inch on Gold Mind (produced and arranged by Norman Harris). The listing doesn’t say which song is on which side."
+  },{
+    artist:"bronski beat",titles:["truthdare doubledare"],
+    about:"Truthdare Doubledare is the second studio album by Bronski Beat, released in April 1986 on MCA Records and the first made without original singer Jimmy Somerville, who left in 1985 to form The Communards. Steve Bronski and Larry Steinbachek brought in John Foster as lead vocalist, and the album was produced by Adam Williams, who had worked on early Eurythmics hits. It was written and recorded quickly after the Hi-NRG club single Hit That Perfect Beat, which reached No. 3 in the UK, and the follow-up C’mon C’mon reached the UK Top 20. Reviewers heard it as much in the same vein as their debut, The Age of Consent, though less consistent. It received its first reissue for the 40th anniversary on July 3, 2026 from London Records, with a remaster and previously unreleased studio and live material.",
+    aboutNote:"Summary based on press coverage (Spill, Super Deluxe Edition, Queerty), not written from Claude’s memory."
+  }];
+  function known(r){
+    var a=nw(r.artist),t=nw(r.title);
+    for(var i=0;i<KNOWN.length;i++)if(nw(KNOWN[i].artist)===a&&KNOWN[i].titles.indexOf(t)>-1)return KNOWN[i];
+    return null;
+  }
+  /* Standout tracks chosen by you; these replace whatever Claude marked for that album */
+  var PINNED=[{artist:"madonna",titles:["confessions on a dance floor"],picks:["Hung Up","Get Together","Sorry","Future Lovers","Let It Will Be"]}];
+  function pinned(r){
+    var a=nw(r.artist),t=nw(baseTitle(r.title));
+    for(var i=0;i<PINNED.length;i++)if(nw(PINNED[i].artist)===a&&PINNED[i].titles.indexOf(t)>-1)return PINNED[i];
+    return null;
+  }
+  function applyPins(r,list){
+    var pn=pinned(r);if(!pn)return list;
+    var want={};pn.picks.forEach(function(x){want[nw(x)]=1});
+    if(!list.some(function(t){return want[nw(t.t)]}))return list;
+    return list.map(function(t){return {t:t.t,s:!!want[nw(t.t)]}});
+  }
+  /* Tracks that are not part of an album's release, removed by position (1-based) from its saved tracklist, once per record */
+  var TRIMS=[{artist:"Marina & The Diamonds",title:"Electra Heart",positions:[15,16,17]}];
+  var KEY_TRIM="spin_trimmed_v1", TRIMMED=read(KEY_TRIM)||{};
+  function trimmed(r,list){
+    var k=key(r);
+    if(TRIMMED[k])return list;
+    for(var i=0;i<TRIMS.length;i++){
+      var x=TRIMS[i];
+      if(nw(x.artist)!==nw(r.artist)||nw(x.title)!==nw(baseTitle(r.title)))continue;
+      if(list.length<Math.max.apply(null,x.positions))return list;
+      var out=list.filter(function(t,j){return x.positions.indexOf(j+1)<0});
+      TRACKS[k]=out;store(KEY_T,TRACKS);TRIMMED[k]=1;store(KEY_TRIM,TRIMMED);
+      return out;
+    }
+    return list;
+  }
+  var KEY_SEED="spin_seeded_v1", SEEDED=read(KEY_SEED)||{};
+  function seedKnown(r){
+    var kn=known(r),k=key(r);
+    var rev=kn&&(kn.rev||1);
+    if(!kn||SEEDED[k]===rev)return;
+    SEEDED[k]=rev;store(KEY_SEED,SEEDED);
+    if(kn.about){ABOUT[k]=kn.about;store(KEY_B,ABOUT)}
+    var vr=kn.variants&&kn.variants[nw(r.title)],omit={};
+    if(vr)vr.omit.forEach(function(x){omit[nw(x)]=1});
+    if(kn.tracks){
+      TRACKS[k]=kn.tracks.split("|").map(function(x){var st=/\*$/.test(x);return {t:x.replace(/\*$/,""),s:st}}).filter(function(t){return !omit[nw(t.t)]});
+      store(KEY_T,TRACKS);
+    }
+  }
+  var PLAYS=read(KEY_P)||{}, FAVS=read(KEY_F)||{}, TRACKS=read(KEY_T)||{};
+  /* Each record keeps its listen count (n), its latest listen (last), the dates of listens logged since dates were tracked (hist),
+     and the latest date among older, undated listens (base). */
+  function addSpin(k,ts){
+    ts=ts||Date.now();
+    var o=PLAYS[k]||{n:0,last:0},hasH=!!(o.hist&&o.hist.length);
+    var base=hasH?(o.base||0):(o.n>0?(o.last||0):0);
+    var h=(o.hist||[]).concat(ts).sort(function(a,b){return a-b}).slice(-200);
+    PLAYS[k]={n:o.n+1,last:Math.max(base,h[h.length-1]),base:base,hist:h};store(KEY_P,PLAYS);
+  }
+  /* Removes the most recent dated listen (or, for older counts with no dates, one undated listen) */
+  function removeSpin(k){
+    var o=PLAYS[k];if(!o||!o.n)return false;
+    if(!(o.hist&&o.hist.length)){PLAYS[k]={n:o.n-1,last:o.prev||0};store(KEY_P,PLAYS);return true}
+    var h=o.hist.slice();h.pop();
+    PLAYS[k]={n:o.n-1,last:Math.max(h.length?h[h.length-1]:0,o.base||0),base:o.base||0,hist:h};store(KEY_P,PLAYS);
+    return true;
+  }
+  function dayStamp(v){
+    var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v||"");if(!m)return Date.now();
+    var d=new Date(+m[1],+m[2]-1,+m[3],12,0,0);
+    return d.getTime()>Date.now()?Date.now():d.getTime();
+  }
+  function today(){var d=new Date(),z=function(n){return (n<10?"0":"")+n};return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())}
+  function niceDate(ts){try{return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}catch(e){return ""}}
+  function spinsChanged(){renderSpins(NP);renderSpins(PV);renderTop();renderLog()}
+  function undoSpin(){if(removeSpin(nowKey))spinsChanged()}
+  /* Log past listens: add or remove a spin for any record, searched by artist or title */
+  function renderLog(){
+    var ul=$("logList"),q=nw($("logSearch").value),toks=q?q.split(" "):[];
+    ul.innerHTML="";
+    if(!toks.length)return;
+    var hits=records.filter(function(r){
+      var h=nw(r.artist+" "+r.title);
+      return toks.every(function(t){return h.indexOf(t)>-1});
+    });
+    $("logMsg").textContent=hits.length?(hits.length>8?"Showing 8 of "+hits.length+". Keep typing to narrow it down.":""):"No records match that.";
+    hits.slice(0,8).forEach(function(r){
+      var k=key(r),n=(PLAYS[k]&&PLAYS[k].n)||0;
+      var li=document.createElement("li");li.style.cssText="display:flex;gap:10px;align-items:center";
+      var d=document.createElement("div");d.className="mi";
+      var t=document.createElement("div");t.className="mt";t.textContent=r.title;
+      var a=document.createElement("div");a.className="ma";
+      a.textContent=[r.artist,r.year,fmtMain(r.format)].filter(Boolean).join(" \u00b7 ")+" \u00b7 "+n+(n===1?" listen":" listens")+(n&&PLAYS[k].last?", last "+niceDate(PLAYS[k].last):"");
+      d.appendChild(t);d.appendChild(a);
+      var rb=document.createElement("div");rb.className="rbtns";
+      var add=document.createElement("button");add.type="button";add.className="btn ghost qbtn";add.textContent="+ Add listen";
+      add.setAttribute("aria-label","Add a listen for "+r.title);
+      add.onclick=function(){
+        var ts=dayStamp($("logDate").value);addSpin(k,ts);spinsChanged();
+        $("logMsg").textContent="Added a listen for "+r.title+" on "+niceDate(ts)+".";
+      };
+      rb.appendChild(add);
+      if(n>0){
+        var rm=document.createElement("button");rm.type="button";rm.className="btn ghost qbtn";rm.textContent="\u2212 Remove";
+        rm.setAttribute("aria-label","Remove a listen for "+r.title);
+        rm.onclick=function(){if(removeSpin(k)){spinsChanged();$("logMsg").textContent="Removed a listen for "+r.title+"."}};
+        rb.appendChild(rm);
+      }
+      li.appendChild(d);li.appendChild(rb);ul.appendChild(li);
+    });
+  }
+  function renderSpins(V){
+    var vk=V.k();if(!vk)return;
+    var o=PLAYS[vk],n=o?o.n:0,el=$(V.p+"Spins");
+    if(!n){el.textContent="Not spun yet";}
+    else{
+      var d="";try{d=new Date(o.last).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}catch(e){}
+      el.textContent="";var pl=document.createElement("span");pl.className="spinpill";pl.textContent=n+"\u00d7";el.appendChild(pl);
+      el.appendChild(document.createTextNode("Spun "+n+(n===1?" time":" times")+(d?" \u00b7 last "+d:"")));
+    }
+    var ub=$(V.p+"Undo");if(ub)ub.hidden=!n;
+    var f=!!FAVS[vk],b=$(V.p+"Fav");
+    b.textContent=f?"\u2605 Favorited":"\u2606 Favorite";b.setAttribute("aria-pressed",f?"true":"false");
+  }
+  $("npUndo").onclick=undoSpin;
+  function toggleFav(V){
+    var k=V.k();if(!k)return;
+    if(FAVS[k])delete FAVS[k];else FAVS[k]=1;
+    store(KEY_F,FAVS);renderSpins(NP);renderSpins(PV);renderTop();keepScroll=true;updatePool();
+  }
+  function ytLink(artist,track){return "https://www.youtube.com/results?search_query="+encodeURIComponent(artist+" "+track)}
+  /* Auto-fetch: when a record is shown (Now playing or Preview) its summary and standout tracks are filled in on their own.
+     Calls are debounced, run one after another, cached in this browser, and only retried by hand after a failure. */
+  var busy={}, failed={}, partial={}, autoT={};
+  function refreshAbout(k){[NP,PV].forEach(function(V){var r=V.rec();if(r&&key(r)===k)renderAbout(r,V)})}
+  function refreshTracks(k){[NP,PV].forEach(function(V){var r=V.rec();if(r&&key(r)===k)renderTracks(r,V)})}
+  /* Drops chatty lines the model sometimes mixes in (notes, corrections, "here is the list") and repeated titles */
+  function isChatter(t){
+    var w=t.split(/\s+/).length;
+    if(/[:;]$/.test(t))return true;
+    if(w>12)return true;
+    if(w>=5&&/[.!]$/.test(t))return true;
+    if(w>=4&&/\b(I'm|I am|I’m|I think|here is|here's|here are|note|correction|actually|standard order|as requested|the list|tracklist|pressings?|confident)\b/i.test(t))return true;
+    return false;
+  }
+  function dedupe(a){var seen={};return a.filter(function(x){if(isChatter(x.t))return false;var n=nw(x.t);if(seen[n])return false;seen[n]=1;return true})}
+  var trEdit={}, trForm={};
+  /* Tracklists typed in by hand are kept exactly as entered and never refetched or auto-marked */
+  var KEY_MAN="spin_manual_tracks_v1", MANUAL=read(KEY_MAN)||{};
+  function parseTrackText(text){
+    return (text||"").split(/\r?\n/).map(function(x){
+      var star=/^\s*(?:[-\u2022]\s*)?[*\u2605]/.test(x);
+      var t=x.replace(/^\s*(?:[-\u2022*\u2605]\s*)*(?:\d{1,2}[.)]\s+)?/,"").trim();
+      return {t:t,s:star};
+    }).filter(function(x){return x.t}).slice(0,80);
+  }
+  function saveManual(k,text){
+    var l=parseTrackText(text);
+    if(l.length){TRACKS[k]=l;MANUAL[k]=1;delete failed["t"+k]}
+    else{delete TRACKS[k];delete MANUAL[k];failed["t"+k]="blank"}
+    store(KEY_T,TRACKS);store(KEY_MAN,MANUAL);
+  }
+  function moveTrack(k,i,d){
+    var l=MANUAL[k]?(TRACKS[k]||[]).slice():dedupe(TRACKS[k]||[]),j=i+d;
+    if(j<0||j>=l.length)return;
+    var t=l[i];l[i]=l[j];l[j]=t;TRACKS[k]=l;store(KEY_T,TRACKS);refreshTracks(k);
+  }
+  function renderTracks(r,V){
+    var k=key(r),list=TRACKS[k]&&(MANUAL[k]?TRACKS[k]:applyPins(r,trimmed(r,dedupe(TRACKS[k])))),box=$(V.p+"Tr"),ul=$(V.p+"TrList"),note=$(V.p+"TrNote"),btn=$(V.p+"TrBtn");
+    ul.innerHTML="";
+    var has=!!(list&&list.length),f=failed["t"+k],isBusy=!!busy["t"+k];
+    box.hidden=false;
+    note.textContent="";
+    if(has){
+      var anyStar=false;
+      list.forEach(function(t,i){
+        var li=document.createElement("li"),a=document.createElement("a");
+        li.appendChild(document.createTextNode((i+1)+". "));
+        if(t.s){
+          a.href=ytLink(r.artist||"",t.t);a.target="_blank";a.rel="noopener";a.textContent="\u25b6 "+t.t;
+          a.style.fontWeight="700";li.style.fontWeight="700";anyStar=true;
+          li.appendChild(a);
+        }else li.appendChild(document.createTextNode(t.t));
+        if(trEdit[V.p]){
+          [["\u25b2",-1],["\u25bc",1]].forEach(function(m){
+            var mb=document.createElement("button");mb.type="button";mb.className="btn ghost";
+            mb.style.cssText="padding:0 8px;margin-left:6px;min-height:0;font-size:12px;line-height:20px;font-weight:400";
+            mb.textContent=m[0];mb.setAttribute("aria-label",(m[1]<0?"Move up ":"Move down ")+t.t);
+            mb.onclick=function(){moveTrack(k,i,m[1])};li.appendChild(mb);
+          });
+        }
+        ul.appendChild(li);
+      });
+      note.textContent=MANUAL[k]?(anyStar?"Bold tracks are the standouts and link to a YouTube search. ":"")+"Tracklist entered by you.":(known(r)&&known(r).tracks)?((known(r).variants&&known(r).variants[nw(r.title)])||known(r)).note||known(r).tracksNote:(anyStar?"Bold tracks are the standouts and link to a YouTube search. ":"")+"Listed by Claude from general knowledge, so double-check it against your pressing.";
+    }else if(isBusy){
+      note.textContent="Getting tracklist\u2026";
+    }else if(f==="unknown"){
+      note.textContent=sampleFn?"I don\u2019t know this album\u2019s tracklist well enough to list it.":"No tracklist found on MusicBrainz. Tap the pencil to add one.";
+    }else if(f==="declined"){
+      note.textContent="Claude access was declined for this page.";
+    }else if(f==="blank"||!f){
+      note.textContent="No tracklist yet. Tap the pencil to add one.";
+    }else if(f){
+      note.textContent="Couldn\u2019t get the tracklist right now.";
+    }
+    /* Pencil: type or paste a tracklist by hand */
+    var form=$(V.p+"TrForm"),ta=$(V.p+"TrText");
+    form.hidden=!trForm[V.p];ul.hidden=!!trForm[V.p];
+    if(trForm[V.p])note.textContent="";
+    $(V.p+"TrPen").onclick=function(){
+      trForm[V.p]=!trForm[V.p];trEdit[V.p]=false;
+      if(trForm[V.p])ta.value=(list||[]).map(function(t){return (t.s?"*":"")+t.t}).join("\n");
+      renderTracks(r,V);
+      if(trForm[V.p])ta.focus();
+    };
+    $(V.p+"TrCancel").onclick=function(){trForm[V.p]=false;renderTracks(r,V)};
+    $(V.p+"TrSave").onclick=function(){trForm[V.p]=false;saveManual(k,ta.value);refreshTracks(k)};
+    var eb=$(V.p+"TrEdit");
+    if(!has)trEdit[V.p]=false;
+    eb.hidden=!has||!!trForm[V.p]||!trEdit[V.p];
+    eb.onclick=function(){trEdit[V.p]=false;renderTracks(r,V)};
+    var rb=$(V.p+"TrReorder");rb.hidden=!has;
+    rb.onclick=function(){trForm[V.p]=false;trEdit[V.p]=true;renderTracks(r,V)};
+    if(has&&trEdit[V.p])note.textContent="Use the arrows to move a track. Your order is saved in this browser.";
+    btn.hidden=!(sampleFn&&!has&&!isBusy&&(f==="error"||f==="declined"));
+    btn.disabled=false;btn.textContent="Try again";
+  }
+  function askTracks(V){
+    var r=V.rec();if(!r||!sampleFn)return Promise.resolve();
+    var k=key(r);if(busy["t"+k])return Promise.resolve();
+    busy["t"+k]=1;delete failed["t"+k];refreshTracks(k);
+    var sum=((WEB[k]&&WEB[k].extract)||ABOUT[k]||"").slice(0,1200);
+    var prompt="List the full tracklist of the original standard edition of the album \""+baseTitle(r.title)+"\" by "+r.artist+(r.year?" (originally released "+r.year+")":"")
+      +", in the album's standard track order from first track to last. Reply with exactly one song title per line, starting immediately with the first title and containing nothing else: no numbering, no quotes, no notes, no corrections, no introduction, no commentary, and never list the same title twice. Give the list once only. Do not reorder tracks or list standouts separately; instead put an asterisk (*) at the start of each standout track within the list (usually 3 or 4)."
+      +(sum?" Here is a summary of the album; mark the tracks it highlights as standouts, and add others only if it names fewer than 3: \""+sum+"\".":"")
+      +" If you are not confident you know this album's tracklist, reply with only the word UNKNOWN.";
+    return sampleFn(prompt,{cache:false}).then(function(res){
+      var lines=(res.text||"").split(/\r?\n/).map(function(x){
+        var star=/^\s*(?:[-\u2022]\s*)?[*\u2605]/.test(x)||/\*\s*$/.test(x)||/\((?:standout|single|highlight)\)\s*$/i.test(x);
+        var t=x.replace(/^\s*(?:[-\u2022*\u2605]\s*)*(?:\d{1,2}[.)]\s+)?/,"").replace(/\s*\((?:standout|single|highlight)\)\s*$/i,"").replace(/[\s*★\u2605]+$/,"").replace(/^["\u201c]|["\u201d]$/g,"").trim();
+        return {t:t,s:star};
+      }).filter(function(x){return x.t});
+      if(MANUAL[k])return;
+      lines=dedupe(lines);
+      if(!lines.length||/^unknown$/i.test(lines[0].t)||lines[0].t.length>80){failed["t"+k]="unknown";return}
+      TRACKS[k]=lines.slice(0,40);store(KEY_T,TRACKS);
+    }).catch(function(e){
+      failed["t"+k]=(e&&e.code==="not_granted")?"declined":"error";
+    }).then(function(){delete busy["t"+k];refreshTracks(k)});
+  }
+  /* If a saved tracklist has no standouts marked, ask Claude to pick them from the list, using the summary */
+  function needStand(k){var l=TRACKS[k],r=recByKey(k);return !!(l&&l.length)&&!(r&&(pinned(r)||(known(r)&&known(r).tracks)||MANUAL[k]))&&!l.some(function(t){return t.s})&&!failed["s"+k]&&!busy["s"+k]}
+  function askStandouts(V){
+    var r=V.rec();if(!r||!sampleFn)return Promise.resolve();
+    var k=key(r);if(!needStand(k))return Promise.resolve();
+    busy["s"+k]=1;refreshTracks(k);
+    var list=dedupe(TRACKS[k]),sum=((WEB[k]&&WEB[k].extract)||ABOUT[k]||"").slice(0,1200);
+    var prompt="Album: \""+baseTitle(r.title)+"\" by "+r.artist+(r.year?" ("+r.year+")":"")+".\nTracklist:\n"+list.map(function(t){return t.t}).join("\n")
+      +(sum?"\n\nSummary of the album: "+sum:"")
+      +"\n\nChoose the 3 or 4 standout tracks from this tracklist: the best known or most acclaimed, and any the summary highlights. Reply with only their exact titles from the tracklist, one per line, nothing else.";
+    return sampleFn(prompt,{cache:false}).then(function(res){
+      var want={};(res.text||"").split(/\r?\n/).forEach(function(x){var n=nw(x.replace(/^\s*(?:[-\u2022*]\s*)*(?:\d{1,2}[.)]\s+)?/,""));if(n)want[n]=1});
+      var hit=0;list.forEach(function(t){if(want[nw(t.t)]){t.s=true;hit++}});
+      if(hit){TRACKS[k]=list;store(KEY_T,TRACKS)}else failed["s"+k]="none";
+    }).catch(function(){failed["s"+k]="error"}).then(function(){delete busy["s"+k];refreshTracks(k)});
+  }
+  function needAbout(k){var w=WEB[k]||{};return !w.extract&&!ABOUT[k]&&!webBusy[k]&&!failed["a"+k]&&!busy["a"+k]}
+  function needTracks(k){return !(TRACKS[k]&&TRACKS[k].length)&&!failed["t"+k]&&!busy["t"+k]}
+  /* Web version: real data sources, no Claude needed */
+  var mbT=0;
+  function mbGet(u){var wait=Math.max(0,mbT+1100-Date.now());mbT=Date.now()+wait;
+    return new Promise(function(ok){setTimeout(ok,wait)}).then(function(){return getJSON(u)})}
+  function fetchMB(r){
+    var t=baseTitle(r.title).replace(/"/g,""),a=(r.artist||"").replace(/"/g,"");
+    var q='releasegroup:"'+t+'" AND artist:"'+a+'"';
+    return mbGet("https://musicbrainz.org/ws/2/release-group/?fmt=json&limit=5&query="+encodeURIComponent(q)).then(function(j){
+      var g=(j["release-groups"]||[]).filter(function(x){return (x.score||0)>=80&&nw(x.title)===nw(t)})[0]||(j["release-groups"]||[]).filter(function(x){return (x.score||0)>=90})[0];
+      if(!g)return [];
+      return mbGet("https://musicbrainz.org/ws/2/release?fmt=json&limit=25&inc=recordings&release-group="+g.id).then(function(j2){
+        var rel=(j2.releases||[]).filter(function(x){return x.status==="Official"&&x.media&&x.media.length});
+        if(!rel.length)rel=(j2.releases||[]).filter(function(x){return x.media&&x.media.length});
+        rel.sort(function(x,y){return (x.date||"9999")<(y.date||"9999")?-1:1});
+        for(var i=0;i<rel.length;i++){
+          var out=[];rel[i].media.forEach(function(m){(m.tracks||[]).forEach(function(tr){if(tr.title)out.push({t:tr.title,s:false})})});
+          if(out.length)return out;
+        }
+        return [];
+      });
+    });
+  }
+  function webAuto(V){
+    var r=V.rec();if(!r)return;var k=key(r);
+    if(!needTracks(k)||MANUAL[k])return;
+    busy["t"+k]=1;refreshTracks(k);
+    fetchMB(r).then(function(list){
+      if(MANUAL[k])return;
+      if(list.length){TRACKS[k]=list;store(KEY_T,TRACKS)}else failed["t"+k]="unknown";
+    }).catch(function(){failed["t"+k]="error"}).then(function(){delete busy["t"+k];refreshTracks(k)});
+  }
+  function runAuto(V){
+    if(!sampleFn){webAuto(V);return}
+    var r=V.rec();if(!r)return;
+    var k=key(r),p=Promise.resolve();
+    if(needAbout(k))p=askAbout(V);
+    p.then(function(){var r2=V.rec();if(r2&&key(r2)===k&&needTracks(k))return askTracks(V)}).then(function(){var r2=V.rec();if(r2&&key(r2)===k&&needStand(k))return askStandouts(V)});
+  }
+  function autoFetch(V){
+    clearTimeout(autoT[V.p]);
+    if(!V.rec())return;
+    autoT[V.p]=setTimeout(function(){runAuto(V)},500);
+  }
+  /* Spinning record shown in place of the emoji while a record is playing; the label color comes from the record */
+  function nowDisc(r,still){
+    var h=hue((r.artist||"")+"|"+r.title);
+    var w=document.createElement("div");w.className="vwrap"+(still?" still":"");w.setAttribute("aria-hidden","true");
+    var v=document.createElement("div");v.className="vinyl";
+    var l=document.createElement("div");l.className="vlabel";
+    l.style.background=gradientFor(r)||"linear-gradient(135deg,hsl("+h+",60%,52%),hsl("+((h+50)%360)+",65%,32%))";
+    v.appendChild(l);w.appendChild(v);
+    var sh=document.createElement("div");sh.className="vsheen";w.appendChild(sh);
+    return w;
+  }
+  function renderView(V){
+    var r=V.rec();
+    $(V.p+"Card").hidden=!r;
+    if(!r)return;
+    var box=$(V.p+"Art");box.innerHTML="";box.appendChild(nowDisc(r,V===PV));
+    $(V.p+"Title").textContent=r.title;
+    $(V.p+"Artist").textContent=r.artist||"Unknown artist";
+    $(V.p+"Meta").textContent=[r.year||"",fmtMain(r.format),r.label].filter(Boolean).join(" \u00b7 ");
+    $(V.p+"Vibe").textContent=vibe(r);
+    var L=$(V.p+"Links");L.innerHTML="";
+    var links=[
+      ["Wikipedia","https://en.wikipedia.org/w/index.php?search="+encodeURIComponent(r.artist+" "+r.title+" album")]
+    ];
+    links.push(["Listen on Apple Music","https://music.apple.com/us/search?term="+encodeURIComponent(r.artist+" "+r.title)]);
+    if(r.id)links.push(["Discogs","https://www.discogs.com/release/"+encodeURIComponent(r.id)]);
+    links.forEach(function(x){
+      var a=document.createElement("a");a.href=x[1];a.target="_blank";a.rel="noopener";a.textContent=x[0];L.appendChild(a);
+    });
+    seedKnown(r);
+    renderAbout(r,V);
+    renderSpins(V);
+    renderTracks(r,V);
+    renderPairs(r,V);
+    var nt=$(V.p+"MyNote");if(document.activeElement!==nt)nt.value=NOTES[key(r)]||"";
+    autoFetch(V);
+  }
+  var npVisible=true;
+  function renderMini(){
+    var r=nowKey?nowRec():null,m=$("mini"),show=!!r&&!npVisible;
+    m.hidden=!show;document.body.classList.toggle("hasmini",show);
+    if(!r)return;
+    $("miniT").textContent=r.title;$("miniA").textContent=r.artist||"";
+    $("miniNext").hidden=!QUEUE.length;
+  }
+  try{ if("IntersectionObserver" in window){
+    new IntersectionObserver(function(es){npVisible=es[es.length-1].isIntersecting;renderMini()}).observe($("npCard"));
+  }else npVisible=true; }catch(e){}
+  $("miniGo").onclick=function(){$("npCard").scrollIntoView({behavior:"smooth",block:"start"})};
+  $("miniNext").onclick=function(){playNext()};
+  $("miniStop").onclick=function(){$("npStop").click()};
+  function renderNow(){renderView(NP);renderTop();renderMini()}
+  /* Most played: records ranked by spin count (ties go to the most recent spin) */
+  function renderTop(){
+    var rows=[];
+    Object.keys(PLAYS).forEach(function(k){
+      var o=PLAYS[k];if(!o||!o.n)return;
+      var r=recByKey(k);if(r)rows.push({r:r,n:o.n,last:o.last||0});
+    });
+    rows.sort(function(a,b){return b.n-a.n||b.last-a.last});
+    rows=rows.slice(0,10);
+    $("topCard").hidden=!rows.length;
+    var ul=$("topList");ul.innerHTML="";
+    $("topHead").textContent="Most played"+(rows.length?" (top "+rows.length+")":"");
+    rows.forEach(function(x,i){
+      var li=document.createElement("li");li.className="qrow";
+      var num=document.createElement("div");num.className="qn";num.textContent=String(i+1);
+      var box=document.createElement("div");box.className="mi";
+      var t=document.createElement("div");t.className="mt";t.textContent=(FAVS[key(x.r)]?"\u2605 ":"")+x.r.title;
+      var a=document.createElement("div");a.className="ma";a.textContent=[x.r.artist,x.r.year].filter(Boolean).join(" \u00b7 ");
+      var c=document.createElement("div");c.className="mv";
+      var d="";try{d=new Date(x.last).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}catch(e){}
+      c.textContent=x.n+(x.n===1?" spin":" spins")+(d?" \u00b7 last "+d:"");
+      box.appendChild(t);box.appendChild(a);box.appendChild(c);
+      var b=document.createElement("button");b.type="button";b.className="btn ghost qbtn";
+      b.textContent=key(x.r)===nowKey?"\u25b6 Playing":"\u25b6 Play";b.setAttribute("aria-label","Play "+x.r.title);
+      b.onclick=function(){setNow(x.r)};
+      li.appendChild(num);li.appendChild(box);li.appendChild(b);ul.appendChild(li);
+    });
+  }
+  /* Learn more: the same card for a record that is not playing yet, so you can read up before choosing it */
+  function renderPreview(){
+    renderView(PV);
+    var r=pvRec();if(!r)return;
+    var playing=key(r)===nowKey,pb=$("pvPlay");
+    pb.disabled=playing;pb.textContent=playing?"\u25b6 Playing":"\u25b6 Play this";
+    paintQBtn($("pvQueue"),r);
+  }
+  function openPreview(r){
+    pvKey=key(r);loadWeb(r);renderPreview();
+    keepScroll=true;updatePool();
+    try{$("pvCard").scrollIntoView({behavior:"smooth",block:"nearest"})}catch(e){}
+  }
+  function closePreview(){pvKey="";renderPreview();keepScroll=true;updatePool()}
+  /* Pairings: other records that share genre terms or genre groups with the one playing, favoring nearby release years */
+  function gterms(r){var g=(vibe(r)||"").split(" \u2014 ");return (g[0]||"").toLowerCase().split(/\s*\u00b7\s*/).filter(Boolean)}
+  function vwords(r){var g=(vibe(r)||"").split(" \u2014 ");return g[1]?g[1].toLowerCase().split(/\s*,\s*/).filter(Boolean):[]}
+  /* Groups of vibe words that feel alike, so "sultry" and "sensual" count as a match */
+  var MOODS=[["sultry","sensual","smooth","silky","romantic","smoky","provocative"],["club-ready","dancefloor","danceable","euphoric","bubbly","bright","glossy","sleek","groovy","bouncy","nonstop"],["dreamy","hazy","lush","shimmering","luminous","ethereal","hushed","warm"],["moody","brooding","melancholic","stark","nocturnal","wistful","bittersweet","murky"],["spiritual","reflective","intense","commanding"]];
+  function moods(list){var o={};list.forEach(function(w){MOODS.forEach(function(m,i){if(m.indexOf(w)>-1)o[i]=1})});return Object.keys(o)}
+  /* Same-artist pairings are allowed only for Madonna */
+  function sameArtistOK(r){return /^madonna$/i.test(r.artist||"")}
+  function pairs(r){
+    var T=gterms(r),C=cats(r),V=vwords(r),VM=moods(V),k=key(r),out=[],seenP={};
+    if(!T.length)return out;
+    records.forEach(function(o){
+      if(key(o)===k||nw(baseTitle(o.title))===nw(baseTitle(r.title)))return;
+      var same=o.artist===r.artist;
+      if(same&&!sameArtistOK(r))return;
+      var ot=gterms(o),sh=T.filter(function(x){return ot.indexOf(x)>-1}),sc=sh.length*3;
+      var gc=cats(o).filter(function(x){return C.indexOf(x)>-1});sc+=gc.length;
+      if(!sh.length&&!gc.length)return;
+      var ov=vwords(o);
+      sc+=ov.filter(function(x){return V.indexOf(x)>-1}).length;
+      sc+=moods(ov).filter(function(x){return VM.indexOf(x)>-1}).length*2;
+      if(same)sc+=3;
+      var d=(r.year&&o.year)?Math.abs(r.year-o.year):null;
+      if(d!==null)sc+=d<=3?3:d<=7?2:d<=12?1:0;
+      var dk=nw(o.artist+" "+o.title);if(seenP[dk])return;seenP[dk]=1;
+      out.push({r:o,sc:sc,d:d,sh:sh.length?sh:gc});
+    });
+    out.sort(function(a,b){return b.sc-a.sc||(a.d===null?99:a.d)-(b.d===null?99:b.d)});
+    return out.slice(0,8);
+  }
+  function renderPairs(r,V){
+    var box=$(V.p+"Pairs"),ul=$(V.p+"PairList"),note=$(V.p+"PairNote");
+    ul.innerHTML="";box.hidden=false;
+    var ps=pairs(r),qb=$(V.p+"PairQ");
+    var qk=ps.filter(function(p){return QUEUE.indexOf(key(p.r))<0&&key(p.r)!==nowKey}).slice(0,3);
+    qb.hidden=!qk.length;qb.textContent="Queue top "+qk.length+(qk.length===1?" pairing":" pairings");
+    qb.onclick=function(){qk.forEach(function(p){if(QUEUE.length<50)QUEUE.push(key(p.r))});qChanged()};
+    $(V.p+"PairSum").textContent="Pairs well with"+(ps.length?" ("+ps.length+")":"");
+    if(!ps.length){note.textContent="No close matches in your collection by genre and year.";return}
+    note.textContent="Based on shared genres and nearby release years"+(r.year?" (this one: "+r.year+")":"")+".";
+    ps.forEach(function(p){
+      var li=document.createElement("li");li.style.cssText="display:flex;flex-direction:column;gap:8px;align-items:stretch";
+      var d=document.createElement("div");d.className="mi";
+      var t=document.createElement("div");t.className="mt";t.textContent=p.r.title;
+      var pn=PLAYS[key(p.r)]?PLAYS[key(p.r)].n:0;
+      if(pn){var pl=document.createElement("span");pl.className="spinpill";pl.style.cssText="margin:0 0 0 8px;color:#fff;font-size:12px";pl.textContent=pn+"\u00d7";pl.title="Spun "+pn+(pn===1?" time":" times");t.appendChild(pl)}
+      var a=document.createElement("div");a.className="ma";a.textContent=[p.r.artist,p.r.year].filter(Boolean).join(" \u00b7 ");
+      var why=document.createElement("div");why.className="mv";
+      why.textContent=p.sh.join(", ")+(p.d===0?" \u00b7 same year":p.d!==null?" \u00b7 "+p.d+" yr"+(p.d===1?"":"s")+" apart":"");
+      d.appendChild(t);d.appendChild(a);d.appendChild(why);
+      var b=document.createElement("button");b.className="btn ghost qbtn";b.textContent="\u25b6 Play";
+      b.setAttribute("aria-label","Play "+p.r.title);b.onclick=function(){setNow(p.r)};
+      var pvb=document.createElement("button");pvb.type="button";pvb.className="btn ghost qbtn";pvb.textContent="Preview";
+      pvb.setAttribute("aria-label","Preview "+p.r.title);pvb.onclick=function(){openPreview(p.r)};
+      var rb=document.createElement("div");rb.className="rbtns hrow";rb.appendChild(pvb);rb.appendChild(b);rb.appendChild(queueBtn(p.r));
+      li.appendChild(d);li.appendChild(rb);ul.appendChild(li);
+    });
+  }
+  /* Live Wikipedia lookup (intro text, CC BY-SA). Results are cached in this browser. */
+  var KEY_W="spin_web_v1", WEB=read(KEY_W)||{}, webBusy={};
+  function nw(s){return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim()}
+  function baseTitle(s){return (s||"").replace(/\s*\([^)]*\)/g,"").trim()}
+  function getJSON(u){return fetch(u).then(function(x){if(!x.ok)throw new Error("http "+x.status);return x.json()})}
+
+  function fetchWiki(t,a){
+    var u="https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=6&gsrsearch="+encodeURIComponent(t+" "+a+" album")
+      +"&prop=extracts%7Cinfo&exintro=1&explaintext=1&exsentences=4&exlimit=max&inprop=url";
+    return getJSON(u).then(function(j){
+      var pg=(j.query&&j.query.pages)||{},list=Object.keys(pg).map(function(i){return pg[i]});
+      list.sort(function(x,y){return (x.index||0)-(y.index||0)});
+      var tt=nw(t),last=nw(a).split(" ").pop();
+      for(var i=0;i<list.length;i++){
+        var p=list[i],ex=p.extract||"";
+        if(nw(p.title).indexOf(tt)>-1&&/\b(album|ep|compilation|soundtrack|mixtape|single|record)\b/i.test(ex)&&(!last||nw(ex).indexOf(last)>-1))
+          return {title:p.title,url:p.fullurl,extract:ex.trim()};
+      }
+      return null;
+    });
+  }
+  function loadWeb(r){
+    var k=key(r),w=WEB[k];
+    if(webBusy[k]||(w&&w.done))return;
+    var t=baseTitle(r.title),a=r.artist||"";
+    webBusy[k]=1;w=WEB[k]={};
+    fetchWiki(t,a).then(function(x){if(x){w.extract=x.extract;w.url=x.url;w.wtitle=x.title}}).catch(function(){w.werr=1}).then(function(){
+      delete webBusy[k];
+      if(!w.werr){w.done=1;store(KEY_W,WEB)}
+      if(nowKey===k)renderNow();
+      if(pvKey===k)renderPreview();
+    });
+  }
+  function renderAbout(r,V){
+    var k=key(r),w=WEB[k]||{},isBusy=!!busy["a"+k],f=failed["a"+k];
+    var txt=w.extract||ABOUT[k]||(isBusy?(partial[k]||""):""),T=$(V.p+"Text"),N=$(V.p+"Note"),B=$(V.p+"Ask");
+    T.hidden=!(txt||isBusy);T.textContent=txt||(isBusy?"Thinking\u2026":"");
+    N.innerHTML="";
+    function add(s){N.appendChild(document.createTextNode(s))}
+    if(w.extract){
+      add("From ");
+      var al=document.createElement("a");al.href=w.url;al.target="_blank";al.rel="noopener";al.textContent="Wikipedia: "+w.wtitle;N.appendChild(al);
+      add(" (text under CC BY-SA 4.0).");
+    }else if(ABOUT[k]&&!isBusy){
+      add(known(r)&&known(r).aboutNote?known(r).aboutNote:"Summary written by Claude from general knowledge, not pulled live from Wikipedia. Check the Wikipedia link for details.");
+    }else if(!isBusy&&f==="declined"){
+      add("Claude access was declined for this page.");
+    }else if(!isBusy&&f){
+      add("Couldn\u2019t get a summary right now.");
+    }else if(webBusy[k]){
+      add("Looking up Wikipedia\u2026");
+    }else if(w.done&&!ABOUT[k]&&!isBusy&&!sampleFn){
+      add("No matching Wikipedia article found. Use the links above to look further.");
+    }
+    N.hidden=!N.childNodes.length;
+    B.hidden=!(sampleFn&&!w.extract&&!ABOUT[k]&&!isBusy&&(f==="error"||f==="declined"));
+    B.disabled=false;B.textContent="Try again";
+  }
+  function askAbout(V){
+    var r=V.rec();if(!r||!sampleFn)return Promise.resolve();
+    var k=key(r);if(busy["a"+k])return Promise.resolve();
+    busy["a"+k]=1;delete failed["a"+k];partial[k]="";refreshAbout(k);
+    var prompt="Write a short, factual summary (3 to 5 sentences, plain text, no markdown, no headings) of the album \""+r.title+"\" by "+r.artist
+      +(r.year?" (originally released "+r.year+")":"")
+      +", in the style of the opening of its Wikipedia article. Cover its genre, when and how it was made, and its reception or legacy. Do not quote reviews. Do not add any disclaimer, caveat, or note about your confidence or uncertainty, and do not suggest checking other sources; end on the last fact. The only exception: if you do not recognize this album at all, reply with just one short sentence saying so.";
+    return sampleFn(prompt,{onText:function(o){partial[k]=o.text;refreshAbout(k)}}).then(function(res){
+      var t=(res.text||"").trim();
+      if(t){ABOUT[k]=t;store(KEY_B,ABOUT)}else failed["a"+k]="error";
+    }).catch(function(e){
+      failed["a"+k]=(e&&e.code==="not_granted")?"declined":"error";
+    }).then(function(){delete busy["a"+k];delete partial[k];refreshAbout(k)});
+  }
+  $("npStop").onclick=function(){nowKey="";store(KEY_N,"");renderNow();updatePool()};
+  $("mSearch").oninput=function(){renderList(pool())};
+
+  /* Hand-picked thumbnail colors, matched by artist and full title; everything else gets a color derived from its name */
+  var GRADIENTS=[{artist:"Madonna",title:"Confessions II (Expanded Edition)",css:"linear-gradient(135deg,#f7b6d2,#ad86e8)"}];
+  function gradientFor(r){
+    for(var i=0;i<GRADIENTS.length;i++)if(GRADIENTS[i].artist===r.artist&&GRADIENTS[i].title===r.title)return GRADIENTS[i].css;
+    return "";
+  }
+  function hue(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h}
+  /* Emoji thumbnails: first matching keyword in the title wins, then the artist, then a music-themed fallback */
+  var ICONS=[
+    [/dragon/i,"🐉"],[/wave|ocean|oshin/i,"🌊"],[/swim/i,"🏊"],[/water|\brain\b/i,"💧"],[/rainbow/i,"🌈"],
+    [/fireworks/i,"🎆"],[/aquarius/i,"♒"],[/gemini/i,"♊"],[/\bsun\b|sunshine|summer/i,"☀️"],
+    [/ray of light|horizon/i,"🌅"],[/\bmoon|midnight|\bnight/i,"🌙"],[/dream/i,"💭"],[/mountain/i,"🏔️"],
+    [/island|isles/i,"🏝️"],[/snow|winter/i,"❄️"],[/storm|thunder/i,"⛈️"],[/forest|\btrees?\b|wood/i,"🌲"],
+    [/bloom|marigold|flower|garden/i,"🌸"],[/cherry/i,"🍒"],[/honey/i,"🍯"],[/champagne/i,"🍾"],[/wine/i,"🍷"],
+    [/coffee/i,"☕"],[/fever|\bhott?\b|\bfire\b/i,"🔥"],[/vegas/i,"🎰"],[/heaven/i,"☁️"],[/prayer/i,"🙏"],
+    [/spell/i,"🔮"],[/bright lights|epiphany/i,"💡"],[/halcyon|cardinal|\bbirds?\b|\bwings?\b/i,"🐦"],
+    [/\bcat\b/i,"🐱"],[/\bdogs?\b/i,"🐶"],[/wolf/i,"🐺"],[/gorilla/i,"🦍"],[/diamond/i,"💎"],
+    [/\bstars?\b/i,"⭐"],[/space|planet|galaxy/i,"🪐"],[/ghost/i,"👻"],[/skull|death|\bdead\b/i,"💀"],
+    [/electr|spark|lightning/i,"⚡"],[/pain/i,"❤️‍🩹"],[/love|heart|affair|sweet|\bdear\b|kiss/i,"❤️"],
+    [/patch/i,"🩹"],[/hello|goodbye|left you/i,"👋"],[/crash/i,"💥"],[/somersault/i,"🤸"],[/fade|ambient/i,"🌫️"],
+    [/circle/i,"⭕"],[/first time/i,"1️⃣"],[/oops/i,"🙊"],[/hit and run|\brun\b/i,"🏃"],[/rescue/i,"🛟"],
+    [/captain/i,"⚓"],[/minute/i,"⏱️"],[/baby/i,"👶"],[/\bkings?\b|\bqueen|power/i,"👑"],
+    [/\bfool\b/i,"🃏"],[/\bdare\b/i,"🎲"],[/dots|loops|\bblack\b/i,"⚫"],[/\bwhite\b/i,"⚪"],
+    [/99\.9|\b100\b/i,"💯"],[/gold/i,"🥇"],[/silver/i,"🥈"],[/\bblue\b/i,"🔵"],
+    [/miseducation|school/i,"🎓"],[/\bteens?\b/i,"🎒"],[/unknown|going on|who is|who's/i,"❓"],
+    [/substance/i,"🧪"],[/pleasure|pizzazz|so good/i,"✨"],[/lost\b/i,"🧭"],[/\bhome\b/i,"🏠"],
+    [/radio/i,"📻"],[/london/i,"☎️"],[/city|west end/i,"🏙️"],[/road|highway/i,"🛣️"],[/\bcar\b/i,"🚗"],
+    [/train/i,"🚆"],[/\bfl(y|ight)\b|plane/i,"✈️"],[/\bbox\b/i,"📦"],[/tapestry/i,"🧵"],
+    [/fable|stor(y|ies)|\bbook/i,"📖"],[/bedtime/i,"🛏️"],[/secret|murmur|rumou?rs/i,"🤫"],
+    [/eyes|watching|vision/i,"👀"],[/smile/i,"😊"],[/\bcry\b|tears/i,"😢"],[/money|cash|dollar/i,"💵"],
+    [/piano/i,"🎹"],[/blues|bluze|jazz/i,"🎷"],[/rock and roll|rock & roll/i,"🎸"],[/metal/i,"🤘"],
+    [/dance|tango|funk|disco|confession/i,"🪩"],[/singer|sings?\b/i,"🎤"],
+    [/music\b|melody|\bsongs?\b|ballad|\blive\b|sessions?\b/i,"🎶"],[/woman|girl|lady/i,"👩"]
+  ];
+  var ARTIST_ICONS=[
+    [/beach/i,"🏖️"],[/caribou/i,"🦌"],[/geese/i,"🦆"],[/^heart$/i,"❤️"],[/car seat/i,"🚗"],
+    [/avalanches/i,"❄️"],[/black country/i,"⚫"],[/pet shop/i,"🐕"],[/stereolab/i,"🧪"],
+    [/silver jews/i,"🥈"],[/alt-j/i,"🔺"],[/marina/i,"🧜‍♀️"]
+  ];
+  var FALLBACK=["🎵","💿","🎶","🎧","🎼","🥁","📀","🎤","🎸","🎹"];
+  function icon(r){
+    var t=r.title||"",a=r.artist||"",i;
+    for(i=0;i<ICONS.length;i++)if(ICONS[i][0].test(t))return ICONS[i][1];
+    for(i=0;i<ARTIST_ICONS.length;i++)if(ARTIST_ICONS[i][0].test(a))return ARTIST_ICONS[i][1];
+    return FALLBACK[hue(a+"|"+t)%FALLBACK.length];
+  }
+  function cover(r,big){
+    var d=document.createElement("div"),h=hue(r.artist+"|"+r.title);
+    d.className="cover";
+    d.style.background=gradientFor(r)||"linear-gradient(135deg,hsl("+h+",55%,42%),hsl("+((h+50)%360)+",60%,28%))";
+    d.textContent=icon(r);
+    var im=ART[key(r)];
+    if(im){d.textContent="";d.style.background="#222 center/cover no-repeat url(\""+im+"\")"}
+    if(big)d.className+=" big";
+    d.setAttribute("aria-hidden","true");
+    return d;
+  }
+  function renderList(p){
+    $("matchSum").textContent="Matching records ("+p.length+")";
+    var ul=$("matchList");
+    if(!$("matchDet").open)return;
+    var st0=keepScroll?ul.scrollTop:0;keepScroll=false;
+    ul.innerHTML="";
+    var q=($("mSearch")||{value:""}).value.trim().toLowerCase();
+    if(q)p=p.filter(function(r){return (r.artist+" "+r.title).toLowerCase().indexOf(q)>-1});
+    var CAP=300;
+    p.slice().sort(function(a,b){return (a.artist+a.title).toLowerCase()<(b.artist+b.title).toLowerCase()?-1:1}).slice(0,CAP).forEach(function(r){
+      var li=document.createElement("li"),box=document.createElement("div");
+      box.className="mi";
+      var t=document.createElement("div");t.className="mt";t.textContent=(FAVS[key(r)]?"\u2605 ":"")+r.title+((NOTES[key(r)]||MANUAL[key(r)])?" \u270e":"");
+      if(NOTES[key(r)]||MANUAL[key(r)]){t.title=[NOTES[key(r)]?"Has notes":"",MANUAL[key(r)]?"Has a hand-entered tracklist":""].filter(Boolean).join(" \u00b7 ")}
+      if(key(r)===nowKey)li.className="playing";
+      var a=document.createElement("div");a.className="ma";a.textContent=r.artist||"Unknown artist";
+      var m=document.createElement("div");m.className="mm";
+      m.textContent=[r.year||"",fmtMain(r.format),r.label].filter(Boolean).join(" · ");
+      box.appendChild(t);box.appendChild(a);box.appendChild(m);
+      var vb=vibe(r);
+      if(vb){var v=document.createElement("div");v.className="mv";v.textContent=vb;box.appendChild(v);}
+      li.appendChild(cover(r));li.appendChild(box);
+      var pb=document.createElement("button");pb.className="btn ghost qbtn";
+      pb.textContent=key(r)===nowKey?"\u25b6 Playing":"\u25b6 Play";pb.setAttribute("aria-label","Play "+r.title);
+      pb.onclick=function(){setNow(r)};
+      var rb=document.createElement("div");rb.className="rbtns";var lm=document.createElement("button");lm.type="button";lm.className="btn ghost qbtn";
+      lm.textContent=key(r)===pvKey?"Viewing":"Preview";lm.setAttribute("aria-label","Preview "+r.title);
+      lm.onclick=function(){openPreview(r)};
+      rb.appendChild(lm);rb.appendChild(pb);rb.appendChild(queueBtn(r));
+      li.appendChild(rb);ul.appendChild(li);
+    });
+    if(p.length>CAP){var n=document.createElement("li");n.textContent="Showing the first "+CAP+" of "+p.length+". Narrow the filters to see the rest.";ul.appendChild(n)}
+    ul.scrollTop=st0;
+  }
+  $("matchDet").addEventListener("toggle",function(){updatePool()});
+
+  function show(r){
+    var yr=r.year?(r.press&&r.press!==r.year?r.year+" (pressed "+r.press+")":""+r.year):"";
+    var meta=[r.genre,r.label,r.format,yr].filter(Boolean).join(" · ");
+    $("result").innerHTML="";
+    var a=document.createElement("div");a.className="artist";a.textContent=r.artist||"Unknown artist";
+    var t=document.createElement("div");t.className="title";t.textContent=r.title;
+    var m=document.createElement("div");m.className="meta";m.textContent=meta;
+    $("result").appendChild(a);$("result").appendChild(t);$("result").appendChild(m);
+    if(r.id){var l=document.createElement("div");l.className="meta";l.style.marginTop="8px";
+      var link=document.createElement("a");link.href="https://www.discogs.com/release/"+encodeURIComponent(r.id);
+      link.target="_blank";link.rel="noopener";link.textContent="View on Discogs";l.appendChild(link);$("result").appendChild(l);}
+  }
+
+  function renderHist(){
+    $("histCard").hidden=!history.length;
+    var ul=$("hist");ul.innerHTML="";
+    history.slice(0,10).forEach(function(r){
+      var li=document.createElement("li");
+      li.textContent=r.title;
+      var s=document.createElement("span");s.textContent=r.artist?" — "+r.artist:"";
+      li.appendChild(s);ul.appendChild(li);
+    });
+  }
+
+  /* Surprise mode: fewer spins and a longer wait since the last one both raise a record's odds; never-played records count triple */
+  function weightedPick(p){
+    var ws=p.map(function(r){
+      var o=PLAYS[key(r)],n=o?o.n:0,w=1/(1+n);
+      if(o&&o.last)w*=1+Math.min((Date.now()-o.last)/864e5,180)/60;else w*=3;
+      return w;
+    }),sum=ws.reduce(function(a,b){return a+b},0),x=Math.random()*sum;
+    for(var i=0;i<p.length;i++){x-=ws[i];if(x<=0)return p[i]}
+    return p[p.length-1];
+  }
+  function pickOne(){
+    var p=pool();
+    if(!p.length)return null;
+    if($("noRepeat").checked){
+      var fresh=p.filter(function(r){return !seen[key(r)]});
+      if(!fresh.length){p.forEach(function(r){delete seen[key(r)]});fresh=p}
+      p=fresh;
+    }
+    var r=$("surprise").checked?weightedPick(p):p[Math.floor(Math.random()*p.length)];
+    seen[key(r)]=1;
+    return r;
+  }
+
+  function setStage(c,save){
+    $("stage").classList.toggle("collapsed",c);
+    var b=$("stgl");b.textContent=c?"\u25b8":"\u25be";
+    b.setAttribute("aria-expanded",c?"false":"true");b.title=c?"Expand":"Collapse";
+    if(save)store("spin_stage_collapsed",c?1:0);
+  }
+  $("stgl").onclick=function(){setStage(!$("stage").classList.contains("collapsed"),true)};
+  if(read("spin_stage_collapsed"))setStage(true,false);
+  $("pick").onclick=function(){
+    if($("stage").classList.contains("collapsed"))setStage(false,true);
+    var disc=$("disc"),btn=$("pick");
+    btn.disabled=true;disc.classList.add("spin");
+    var n=0,iv=setInterval(function(){
+      var p=pool();show(p[Math.floor(Math.random()*p.length)]);
+      if(++n>=9){
+        clearInterval(iv);
+        disc.classList.remove("spin");
+        current=pickOne();show(current);addPlayBtn(current);
+        history.unshift(current);history=history.slice(0,30);
+        store(KEY_H,history);renderHist();
+        btn.disabled=false;btn.textContent="Pick another";
+      }
+    },90);
+  };
+
+  try{$("surprise").checked=!!localStorage.getItem("spin_surprise")}catch(e){}
+  $("surprise").onchange=function(){try{if($("surprise").checked)localStorage.setItem("spin_surprise","1");else localStorage.removeItem("spin_surprise")}catch(e){}};
+  FILTER_IDS.forEach(function(id){$(id).onchange=function(){seen={};updatePool()}});
+  $("clearFilters").onclick=function(){
+    FILTER_IDS.forEach(function(id){$(id).value=""});
+    seen={};updatePool();
+  };
+  $("logDate").max=today();$("logDate").value=today();
+  function setLogDay(off){var d=new Date();d.setDate(d.getDate()-off);var z=function(n){return (n<10?"0":"")+n};
+    $("logDate").value=d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());$("logDate").dispatchEvent(new Event("change"))}
+  $("logToday").onclick=function(){setLogDay(0)};$("logYest").onclick=function(){setLogDay(1)};
+  $("logSearch").oninput=function(){$("logMsg").textContent="";renderLog()};
+  $("clear").onclick=function(){history=[];store(KEY_H,history);renderHist()};
+
+  function ingest(text){
+    var list=fromText(text);
+    if(!list.length){$("status").textContent="Couldn’t find any records in that. Check the file and try again.";return}
+    setRecords(list);
+  }
+  $("file").onchange=function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();rd.onload=function(){ingest(rd.result)};rd.readAsText(f);
+  };
+  $("load").onclick=function(){ingest($("paste").value)};
+
+  $("pvPlay").onclick=function(){var r=pvRec();if(r)setNow(r)};
+  $("pvQueue").onclick=function(){var r=pvRec();if(r)toggleQueue(r)};
+  $("pvClose").onclick=closePreview;
+  [NP,PV].forEach(function(V){
+    $(V.p+"Fav").onclick=function(){toggleFav(V)};
+    $(V.p+"Ask").onclick=function(){askAbout(V)};
+    $(V.p+"TrBtn").onclick=function(){askTracks(V)};
+    $(V.p+"MyNote").oninput=function(){
+      var k=V.k();if(!k)return;
+      var v=this.value;if(v.trim())NOTES[k]=v;else delete NOTES[k];
+      store(KEY_NOTE,NOTES);
+      var o=V===NP?PV:NP;if(o.k()===k)$(o.p+"MyNote").value=v;
+    };
+  });
+  if(read("spin_top_closed"))$("topDet").open=false;
+  (function(){
+    var closed=!!read("spin_tr_closed");
+    function apply(){
+      ["npTr","pvTr"].forEach(function(id){var box=$(id),b=box.querySelector(".trtog");
+        box.classList.toggle("trc",closed);b.textContent=closed?"\u25b8":"\u25be";
+        b.setAttribute("aria-expanded",closed?"false":"true");b.title=b.ariaLabel=closed?"Expand tracklist":"Collapse tracklist"});
+    }
+    ["npTr","pvTr"].forEach(function(id){$(id).querySelector(".trtog").onclick=function(){closed=!closed;store("spin_tr_closed",closed?1:0);apply()}});
+    apply();
+  })();
+  if(read("spin_filt_closed"))$("filtDet").open=false;
+  $("filtDet").addEventListener("toggle",function(){store("spin_filt_closed",$("filtDet").open?0:1)});
+  $("topDet").addEventListener("toggle",function(){store("spin_top_closed",$("topDet").open?0:1)});
+  var saved=read(KEY_C);
+  history=read(KEY_H)||[];
+  renderHist();
+  if(saved&&saved.length)setRecords(saved);
+  else setRecords(fromText(DEFAULT_CSV));
+  renderQueue();
+  var nr0=nowRec();if(nr0){loadWeb(nr0);renderNow()}
+  /* Optional: point this at your own proxy (see README) to turn Claude summaries and standout tracks on */
+  var CLAUDE_PROXY=window.SPIN_CLAUDE_PROXY||"";
+  if(CLAUDE_PROXY&&!(window.claude&&typeof window.claude.use==="function")){
+    sampleFn=function(prompt){return fetch(CLAUDE_PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:prompt})})
+      .then(function(x){if(!x.ok)throw {code:"error"};return x.json()}).then(function(j){return {text:j.text||""}})};
+  }
+  autoFetch(NP);autoFetch(PV);
+  if(window.claude&&typeof window.claude.use==="function"){
+    window.claude.use("sample").then(function(s){sampleFn=s;var r=nowRec();if(r){renderAbout(r,NP);renderTracks(r,NP)}var pr=pvRec();if(pr){renderAbout(pr,PV);renderTracks(pr,PV)}autoFetch(NP);autoFetch(PV)}).catch(function(){});
+  }
+})();
+</script>
+</body>
+</html>
