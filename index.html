@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Now Playing beta</title>
-<script>/* Optional: URL of your Claude proxy (see README). Leave empty to use Wikipedia + MusicBrainz only. */
-window.SPIN_CLAUDE_PROXY="";</script>
 <style>
 :root{--bg:#f4efe6;--card:#fffdf8;--ink:#1d1a16;--muted:#7a7266;--accent:#4169e1;--line:#e2d9c8;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -91,6 +89,7 @@ h1{padding-right:56px}
   background:repeating-radial-gradient(circle at center,#141414 0 2px,#1f1f1f 2px 4px);
   box-shadow:inset 0 0 0 3px #080808,0 3px 10px rgba(0,0,0,.3);animation:spin 1.8s linear infinite}
 .vlabel{position:absolute;left:50%;top:50%;width:42px;height:42px;margin:-21px 0 0 -21px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.vlabel.hasart{width:58px;height:58px;margin:-29px 0 0 -29px}
 .vlabel::before{content:"";position:absolute;left:50%;top:4px;width:3px;height:9px;margin-left:-1.5px;border-radius:2px;background:rgba(255,255,255,.85)}
 .vlabel::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#0a0a0a}
 .vsheen{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:conic-gradient(from 20deg,transparent 0,rgba(255,255,255,.16) 12%,transparent 28%,transparent 50%,rgba(255,255,255,.12) 62%,transparent 78%)}
@@ -123,6 +122,8 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 <button class="tgl" id="themeBtn" type="button" aria-label="Toggle dark mode"></button>
 <h1>Spin Something</h1>
 <p class="sub" id="status">Load your collection to get started.</p>
+<p class="meta" id="webDiag" style="margin:-12px 0 12px;font-size:12px" hidden></p>
+<details id="missDet" hidden style="margin:-4px 0 12px;font-size:12px"><summary id="missSum" style="color:var(--muted);cursor:pointer"></summary><ul id="missList"></ul></details>
 
 <div class="cols">
 <div class="colL">
@@ -271,6 +272,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <details id="matchDet" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
     <summary id="matchSum">Matching records</summary>
     <input type="text" id="mSearch" placeholder="Search by artist or title" style="margin-top:10px">
+
     <ul id="matchList"></ul>
   </details>
 </div>
@@ -319,7 +321,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 
 <script>
 (function(){
-  var KEY_C="spin_collection_v2", KEY_H="spin_history_v1", KEY_N="spin_now_v1", KEY_A="spin_art_v1", KEY_B="spin_about_v2";
+  var KEY_C="spin_collection_v2", KEY_H="spin_history_v1", KEY_N="spin_now_v1", KEY_A="spin_art_v2", KEY_B="spin_about_v2";
   var DEFAULT_CSV=String.raw`Artist,Title,Format,Label,Pressing Year (Released),Original Release Year,Year Notes,Catalog#,CollectionFolder
 Big Thief,Dragon New Warm Mountain I Believe In You,"2xLP, Album",4AD,2022,2022,,4AD0408LP,Collection
 Cocteau Twins,Heaven Or Las Vegas,"LP, Album, RE, RM, 180",4AD,2020,1990,,CAD 3420,Collection
@@ -1175,7 +1177,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     }else if(isBusy){
       note.textContent="Getting tracklist\u2026";
     }else if(f==="unknown"){
-      note.textContent=sampleFn?"I don\u2019t know this album\u2019s tracklist well enough to list it.":"No tracklist found on MusicBrainz. Tap the pencil to add one.";
+      note.textContent="I don\u2019t know this album\u2019s tracklist well enough to list it.";
     }else if(f==="declined"){
       note.textContent="Claude access was declined for this page.";
     }else if(f==="blank"||!f){
@@ -1246,43 +1248,11 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   }
   function needAbout(k){var w=WEB[k]||{};return !w.extract&&!ABOUT[k]&&!webBusy[k]&&!failed["a"+k]&&!busy["a"+k]}
   function needTracks(k){return !(TRACKS[k]&&TRACKS[k].length)&&!failed["t"+k]&&!busy["t"+k]}
-  /* Web version: real data sources, no Claude needed */
-  var mbT=0;
-  function mbGet(u){var wait=Math.max(0,mbT+1100-Date.now());mbT=Date.now()+wait;
-    return new Promise(function(ok){setTimeout(ok,wait)}).then(function(){return getJSON(u)})}
-  function fetchMB(r){
-    var t=baseTitle(r.title).replace(/"/g,""),a=(r.artist||"").replace(/"/g,"");
-    var q='releasegroup:"'+t+'" AND artist:"'+a+'"';
-    return mbGet("https://musicbrainz.org/ws/2/release-group/?fmt=json&limit=5&query="+encodeURIComponent(q)).then(function(j){
-      var g=(j["release-groups"]||[]).filter(function(x){return (x.score||0)>=80&&nw(x.title)===nw(t)})[0]||(j["release-groups"]||[]).filter(function(x){return (x.score||0)>=90})[0];
-      if(!g)return [];
-      return mbGet("https://musicbrainz.org/ws/2/release?fmt=json&limit=25&inc=recordings&release-group="+g.id).then(function(j2){
-        var rel=(j2.releases||[]).filter(function(x){return x.status==="Official"&&x.media&&x.media.length});
-        if(!rel.length)rel=(j2.releases||[]).filter(function(x){return x.media&&x.media.length});
-        rel.sort(function(x,y){return (x.date||"9999")<(y.date||"9999")?-1:1});
-        for(var i=0;i<rel.length;i++){
-          var out=[];rel[i].media.forEach(function(m){(m.tracks||[]).forEach(function(tr){if(tr.title)out.push({t:tr.title,s:false})})});
-          if(out.length)return out;
-        }
-        return [];
-      });
-    });
-  }
-  function webAuto(V){
-    var r=V.rec();if(!r)return;var k=key(r);
-    if(!needTracks(k)||MANUAL[k])return;
-    busy["t"+k]=1;refreshTracks(k);
-    fetchMB(r).then(function(list){
-      if(MANUAL[k])return;
-      if(list.length){TRACKS[k]=list;store(KEY_T,TRACKS)}else failed["t"+k]="unknown";
-    }).catch(function(){failed["t"+k]="error"}).then(function(){delete busy["t"+k];refreshTracks(k)});
-  }
   function runAuto(V){
-    if(!sampleFn){webAuto(V);return}
-    var r=V.rec();if(!r)return;
+    var r=V.rec();if(!r||(!sampleFn&&!bridge))return;
     var k=key(r),p=Promise.resolve();
     if(needAbout(k))p=askAbout(V);
-    p.then(function(){var r2=V.rec();if(r2&&key(r2)===k&&needTracks(k))return askTracks(V)}).then(function(){var r2=V.rec();if(r2&&key(r2)===k&&needStand(k))return askStandouts(V)});
+    p.then(function(){var r2=V.rec();if(r2&&key(r2)===k&&needTracks(k))return webTracks(V)}).then(function(){var r2=V.rec();if(r2&&key(r2)===k&&needTracks(k))return askTracks(V)}).then(function(){var r2=V.rec();if(r2&&key(r2)===k&&needStand(k))return askStandouts(V)});
   }
   function autoFetch(V){
     clearTimeout(autoT[V.p]);
@@ -1296,6 +1266,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     var v=document.createElement("div");v.className="vinyl";
     var l=document.createElement("div");l.className="vlabel";
     l.style.background=gradientFor(r)||"linear-gradient(135deg,hsl("+h+",60%,52%),hsl("+((h+50)%360)+",65%,32%))";
+    l.setAttribute("data-k",key(r));if(ART[key(r)])paint(l,ART[key(r)]);
     v.appendChild(l);w.appendChild(v);
     var sh=document.createElement("div");sh.className="vsheen";w.appendChild(sh);
     return w;
@@ -1366,7 +1337,8 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       var b=document.createElement("button");b.type="button";b.className="btn ghost qbtn";
       b.textContent=key(x.r)===nowKey?"\u25b6 Playing":"\u25b6 Play";b.setAttribute("aria-label","Play "+x.r.title);
       b.onclick=function(){setNow(x.r)};
-      li.appendChild(num);li.appendChild(box);li.appendChild(b);ul.appendChild(li);
+      var cv=cover(x.r);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(x.r);
+      li.appendChild(num);li.appendChild(cv);li.appendChild(box);li.appendChild(b);ul.appendChild(li);
     });
   }
   /* Learn more: the same card for a record that is not playing yet, so you can read up before choosing it */
@@ -1438,14 +1410,286 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       var pvb=document.createElement("button");pvb.type="button";pvb.className="btn ghost qbtn";pvb.textContent="Preview";
       pvb.setAttribute("aria-label","Preview "+p.r.title);pvb.onclick=function(){openPreview(p.r)};
       var rb=document.createElement("div");rb.className="rbtns hrow";rb.appendChild(pvb);rb.appendChild(b);rb.appendChild(queueBtn(p.r));
-      li.appendChild(d);li.appendChild(rb);ul.appendChild(li);
+      var top=document.createElement("div");top.style.cssText="display:flex;gap:10px;align-items:center;min-width:0";
+      var cv=cover(p.r);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCoverLow(p.r);
+      top.appendChild(cv);top.appendChild(d);
+      li.appendChild(top);li.appendChild(rb);ul.appendChild(li);
     });
   }
   /* Live Wikipedia lookup (intro text, CC BY-SA). Results are cached in this browser. */
   var KEY_W="spin_web_v1", WEB=read(KEY_W)||{}, webBusy={};
   function nw(s){return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim()}
   function baseTitle(s){return (s||"").replace(/\s*\([^)]*\)/g,"").trim()}
-  function getJSON(u){return fetch(u).then(function(x){if(!x.ok)throw new Error("http "+x.status);return x.json()})}
+  /* Internet access: the page itself is sandboxed, so when it is opened in the Claude desktop app it borrows the app's
+     built-in browser (via the mcp capability) to load JSON from Wikipedia and MusicBrainz. */
+  function diag(m){var e=$("webDiag");if(e){e.hidden=!m;e.textContent=m?"Web lookups: "+m:""}}
+  var bridge=null,bridgeOpened=false,bridgeQ=Promise.resolve(),bridgeLast="",BSRV="host:claude_browser";
+  function bTxt(res,raw){
+    var t=typeof res.payload==="string"?res.payload:(res.content||[]).map(function(c){return c.text||""}).join("\n");
+    if(raw)return t;
+    var i=t.indexOf("{"),j=t.lastIndexOf("}");return i>-1&&j>i?t.slice(i,j+1):t;
+  }
+  /* The app limits how fast a page may use its browser: space calls out and wait when it says to slow down */
+  var bLast=0,bGap=800;
+  function bcall(tool,input,opts,n){
+    n=n||0;var wait=Math.max(0,bLast+bGap-Date.now());bLast=Date.now()+wait;
+    return bWait(wait).then(function(){return bridge.callTool(BSRV,tool,input,opts)}).then(function(res){bGap=Math.max(700,Math.round(bGap*0.95));return res}).catch(function(e){
+      if(e&&e.code==="rate_limited"&&n<5){
+        bGap=Math.min(Math.round(bGap*1.6),8000);
+        var d=Math.max(e.retryAfterMs||0,6000*(n+1));
+        diag("the app is limiting browser lookups, waiting "+Math.round(d/1000)+"s\u2026");
+        return bWait(d).then(function(){bLast=Date.now();return bcall(tool,input,opts,n+1)});
+      }
+      throw e;
+    });
+  }
+  function errText(e){var c=e&&e.code?e.code:"",m=e&&e.message?String(e.message):"";
+    if(c==="cancelled")return "timed out waiting for the app\u2019s browser (a permission prompt may be waiting)";
+    return (c+(c&&m?": ":"")+m).slice(0,160)||"unknown error"}
+  function bWait(ms){return new Promise(function(ok){setTimeout(ok,ms)})}
+  /* Load a page in the app's browser and read its text; parse(text) returns the value, or undefined if the page isn't ready */
+  function bridgeRead(u,parse,tries){
+    function read(n){
+      return bcall("get_page_text",{max_chars:300000},{signal:AbortSignal.timeout(60000)}).then(function(res){
+        var t=bTxt(res,parse.raw),v=t&&t!==bridgeLast?parse(t):undefined;
+        if(v!==undefined){bridgeLast=(v&&v.error)?"":t;return v}
+        if(n<(tries||8))return bWait(600).then(function(){return read(n+1)});
+        throw new Error("no data");
+      });
+    }
+    function run(){
+      var first=!bridgeOpened;bridgeOpened=true;
+      return bcall(first?"preview_start":"navigate",{url:u},{signal:AbortSignal.timeout(90000)})
+        .then(function(){return read(0)});
+    }
+    bridgePending++;
+    var r=bridgeQ.then(run);bridgeQ=r.catch(function(){});
+    r.then(function(){bridgePending--},function(){bridgePending--});
+    r.catch(function(e){diag("browser lookup failed: "+errText(e))});return r;
+  }
+  function bridgeJSON(u){return bridgeRead(u,function(t){try{return JSON.parse(t)}catch(e){return undefined}})}
+  /* Images can't load from other sites inside an artifact, so ask an image service for a small base64 copy as text */
+  function bridgeImage(u){
+    if(bridge&&bridge.direct)return fetch(u).then(function(x){if(!x.ok){var e=new Error("no cover art exists for this record");e.code="nocover";throw e}return x.text()}).then(function(t){var m=/data:image\/[a-z+]+;base64,[A-Za-z0-9+\/=]+/.exec(t);if(!m){var e=new Error("no cover art exists for this record");e.code="nocover";throw e}return m[0]});
+    var f=function(t){
+      var m=/data:image\/[a-z+]+;base64,[A-Za-z0-9+\/=]+/.exec(t);if(m)return m[0];
+      /* The image service answered with an error page (no cover exists): stop waiting */
+      if(/URL:\s*https:\/\/images\.weserv\.nl/.test(t))return {error:"nocover"};
+      return undefined;
+    };f.raw=1;
+    return bridgeRead(u,f,8).then(function(v){if(v&&v.error){var e=new Error("no cover art exists for this record");e.code="nocover";throw e}return v});
+  }
+  function getJSON(u){
+    return fetch(u).then(function(x){if(!x.ok)throw new Error("http "+x.status);return x.json()}).catch(function(e){
+      if(!bridge||bridge.direct)throw e;
+      return bridgeJSON(u);
+    });
+  }
+  var mbT=0;
+  /* MusicBrainz limits request rates and sometimes answers {"error": "...busy..."}; pace requests and retry that */
+  function mbGet(u,n){
+    n=n||0;var wait=Math.max(0,mbT+1100-Date.now());mbT=Date.now()+wait;
+    return bWait(wait).then(function(){return getJSON(u)}).then(function(j){
+      if(j&&j.error){if(n<3)diag("MusicBrainz is busy, retrying\u2026");if(n<3)return bWait(4000*(n+1)).then(function(){return mbGet(u,n+1)});diag("MusicBrainz is busy, retries used up");throw new Error("busy")}
+      return j;
+    });
+  }
+  Object.keys(ART).forEach(function(k){if(String(ART[k]).indexOf("data:image/")!==0)delete ART[k]});
+  var GRP={};
+  /* Prefer a plain release of the right type (not an interview or live set), then the one with the most releases */
+  function bestGroup(c,r){
+    var want=/\b(12|7|10)"|\b(single|maxi|ep)\b/i.test(r.format||"")?"Single":"Album";
+    function rank(x){return ((x["secondary-types"]||[]).length?100:0)+(x["primary-type"]===want?0:(x["primary-type"]==="Album"||x["primary-type"]==="EP"||x["primary-type"]==="Single"?10:50))}
+    return c.slice().sort(function(x,y){return rank(x)-rank(y)||(y.count||0)-(x.count||0)})[0]||null;
+  }
+  function artistMatches(x,a){
+    return (x["artist-credit"]||[]).some(function(ac){
+      var ar=ac.artist||{},names=[ac.name,ar.name].concat((ar.aliases||[]).map(function(z){return z.name}));
+      return names.some(function(n){return nw(n)===a});
+    });
+  }
+  /* Albums MusicBrainz's search gets wrong: record key to its MusicBrainz release-group id */
+  var COVER_FIX={"Kylie Minogue|Fever":"d691b0b0-33c2-393a-bc63-dbb681ee662c"};
+  /* One MusicBrainz search for several records at once. Records it can't match fall back to their own search. */
+  function mbBatch(rs){
+    rs=rs.filter(function(r){return !GRP[key(r)]&&!COVER_FIX[key(r)]});
+    if(rs.length<2)return Promise.resolve();
+    var q=rs.map(function(r){var cl=function(x){return String(x||"").replace(/["\\]/g,"")};
+      return '(releasegroup:"'+cl(baseTitle(r.title))+'" AND artist:"'+cl(r.artist)+'")'}).join(" OR ");
+    return mbGet("https://musicbrainz.org/ws/2/release-group/?fmt=json&limit="+Math.min(100,rs.length*12)+"&query="+encodeURIComponent(q)).then(function(j){
+      var gs=j["release-groups"]||[];
+      rs.forEach(function(r){
+        var t=nw(baseTitle(r.title)),a=nw(r.artist||"");
+        var c=gs.filter(function(x){return nw(x.title)===t&&artistMatches(x,a)});
+        var g=bestGroup(c,r);
+        if(g)GRP[key(r)]=Promise.resolve(g);
+      });
+    }).catch(function(){});
+  }
+  /* Secondary, less strict search. Candidates still need a similar title and a related artist, so a wrong album is not accepted. */
+  function lq(x){return nw(x).split(" ").filter(Boolean)}
+  function titleVariants(r){
+    var t=baseTitle(r.title),v=[t];
+    t.split(/\s+\/\s+/).forEach(function(p){if(p!==t)v.push(p)});
+    var a=t.split(/\s*[:–—]\s*|\s+-\s+/)[0];if(a&&a!==t)v.push(a);
+    var b=t.replace(/\b(vol(ume)?s?\.?|part|pt\.?)\s*[ivx\d]+.*$/i,"").trim();if(b&&b!==t)v.push(b);
+    var seen={};return v.filter(function(x){var n=nw(x);if(!n||seen[n])return false;seen[n]=1;return true});
+  }
+  function titleSim(a,b){
+    var A=lq(a),B=lq(b);if(!A.length||!B.length)return 0;
+    var na=A.join(" "),nb=B.join(" ");if(na===nb)return 1;
+    if(Math.min(na.length,nb.length)>=5&&(na.indexOf(nb)>-1||nb.indexOf(na)>-1))return 0.85;
+    var inter=A.filter(function(w){return B.indexOf(w)>-1}).length;
+    return inter/(A.length+B.length-inter);
+  }
+  function artistLoose(x,a){
+    var cr=x["artist-credit"]||[],joined=nw(cr.map(function(ac){return (ac.name||"")+(ac.joinphrase||"")}).join(""));
+    if(joined===a)return true;
+    return cr.some(function(ac){
+      var ar=ac.artist||{},names=[ac.name,ar.name].concat((ar.aliases||[]).map(function(z){return z.name}));
+      return names.some(function(n){var m=nw(n);return m&&m.length>=4&&a.length>=4&&(m===a||a.indexOf(m)>-1||m.indexOf(a)>-1)});
+    });
+  }
+  function fallbackCandidates(r){
+    var a=nw(r.artist||""),vars=titleVariants(r),out=[],seen={};
+    function qs(str){return lq(str).map(function(w){return w.replace(/[^a-z0-9]/g,"")}).filter(Boolean).join(" AND ")}
+    var i=0;
+    function next(){
+      if(out.length||i>=vars.length)return Promise.resolve(out);
+      var tv=vars[i++],tq=qs(tv),aq=qs(r.artist||"");
+      if(!tq)return next();
+      var q="releasegroup:("+tq+")"+(aq?" AND artist:("+aq+")":"");
+      return mbGet("https://musicbrainz.org/ws/2/release-group/?fmt=json&limit=15&query="+encodeURIComponent(q)).then(function(j){
+        (j["release-groups"]||[]).forEach(function(x){
+          if(seen[x.id])return;
+          var sim=Math.max.apply(null,vars.map(function(v){return titleSim(x.title,v)}));
+          if(sim>=0.6&&(!a||artistLoose(x,a))){seen[x.id]=1;out.push({g:x,sim:sim})}
+        });
+        return next();
+      });
+    }
+    return next().then(function(list){
+      var want=/\b(12|7|10)"|\b(single|maxi|ep)\b/i.test(r.format||"")?"Single":"Album";
+      function rank(c){var x=c.g,pt=x["primary-type"];return (1-c.sim)*100+((x["secondary-types"]||[]).length?20:0)+(pt===want?0:(pt==="Album"||pt==="EP"||pt==="Single"?8:30))}
+      return list.sort(function(p,q){return rank(p)-rank(q)||(q.g.count||0)-(p.g.count||0)}).slice(0,3).map(function(c){return c.g});
+    });
+  }
+  function weservUrl(id){return "https://images.weserv.nl/?url="+encodeURIComponent("coverartarchive.org/release-group/"+id+"/front-250")+"&w=120&h=120&fit=cover&output=jpg&q=65&encoding=base64"}
+  function imgOrNull(u){return bridgeImage(u).catch(function(e){if(e&&e.code==="nocover")return null;throw e})}
+  /* Strict search first; if that finds no usable cover, try the looser candidates in order. Returns a data URI or {why} */
+  function findCover(r){
+    return mbGroup(r).then(function(g){return g?imgOrNull(weservUrl(g.id)):null}).then(function(du){
+      if(du)return du;
+      return fallbackCandidates(r).then(function(cs){
+        if(!cs.length)return {why:"no close match on MusicBrainz"};
+        var idx=0;
+        function tryNext(){
+          if(idx>=cs.length)return {why:"matched “"+cs[0].title+"” but it has no cover art"};
+          return imgOrNull(weservUrl(cs[idx++].id)).then(function(d){return d||tryNext()});
+        }
+        return tryNext();
+      });
+    });
+  }
+  function mbGroup(r){
+    var k=key(r);if(GRP[k])return GRP[k];
+    if(COVER_FIX[k])return (GRP[k]=Promise.resolve({id:COVER_FIX[k]}));
+    var t=baseTitle(r.title).replace(/"/g,""),a=(r.artist||"").replace(/"/g,"");
+    var q='releasegroup:"'+t+'" AND artist:"'+a+'"';
+    var pr=mbGet("https://musicbrainz.org/ws/2/release-group/?fmt=json&limit=5&query="+encodeURIComponent(q)).then(function(j){
+      var gs=j["release-groups"]||[];
+      var an=nw(r.artist||"");
+      var c=gs.filter(function(x){return (x.score||0)>=80&&nw(x.title)===nw(t)&&(!an||artistMatches(x,an))});
+      return bestGroup(c,r);
+    });
+    pr.catch(function(){delete GRP[k]});
+    return (GRP[k]=pr);
+  }
+  /* Cover art from the Cover Art Archive, shown wherever a record has a thumbnail */
+  var COVER_TRIED={},coverQ=Promise.resolve(),KEY_NC="spin_nocover_v2",NONE=read(KEY_NC)||{};
+  function markNone(k,why){NONE[k]={t:Date.now(),why:why||"not found"};store(KEY_NC,NONE);renderMissing()}
+  function isNone(k){return NONE[k]&&Date.now()-NONE[k].t<14*864e5}
+  /* Lists records still without a cover and why, so the cause of each gap is visible */
+  function renderMissing(){
+    var d=$("missDet");if(!d)return;
+    var rows=records.filter(function(r){var k=key(r);return !ART[k]&&NONE[k]});
+    d.hidden=!rows.length;if(!rows.length)return;
+    $("missSum").textContent="Records without cover art ("+rows.length+")";
+    var ul=$("missList");ul.innerHTML="";
+    rows.forEach(function(r){var li=document.createElement("li");
+      li.textContent=(r.artist||"Unknown artist")+" — "+r.title+": "+NONE[key(r)].why;ul.appendChild(li)});
+  }
+  function paint(d,url){
+    d.textContent="";d.style.background="#222 center/cover no-repeat url(\""+url+"\")";
+    if(d.classList.contains("vlabel"))d.classList.add("hasart");
+  }
+  function applyCover(k){
+    var url=ART[k];if(!url)return;
+    [].forEach.call(document.querySelectorAll(".cover,.vlabel"),function(d){if(d.getAttribute("data-k")===k)paint(d,url)});
+  }
+  var bridgePending=0,LOW=[],lowRunning=false,coverFails=0;
+  function requestCoverLow(r){
+    if(!bridge||!r)return;
+    var k=key(r);if(ART[k]||COVER_TRIED[k]||isNone(k)||LOW.indexOf(r)>-1)return;
+    LOW.push(r);
+    if(lowRunning)return;lowRunning=true;
+    setTimeout(function next(){
+      var x=LOW.shift();
+      if(!x){lowRunning=false;if(coverFails<4)diag("cover art is up to date");return}
+      var kx=key(x);if(ART[kx]||COVER_TRIED[kx]||isNone(kx))return next();
+      if(coverFails>=4){lowRunning=false;return}
+      diag("fetching cover art ("+(LOW.length+1)+" left)");
+      var chunk=[];
+      if(!GRP[kx])chunk=[x].concat(LOW.slice(0,40)).filter(function(r){var kk=key(r);return !ART[kk]&&!COVER_TRIED[kk]&&!GRP[kk]&&!isNone(kk)}).slice(0,8);
+      mbBatch(chunk).then(function(){requestCover(x);return coverQ}).then(function(){setTimeout(next,100)},function(){setTimeout(next,100)});
+    },60);
+  }
+  /* Everything in the collection, most important first: playing, previewing, most played, queue, then A to Z */
+  function queueAllCovers(){
+    var seenK={},order=[];
+    function add(r){if(!r)return;var k=key(r);if(seenK[k])return;seenK[k]=1;order.push(r)}
+    add(nowRec());add(pvRec());
+    Object.keys(PLAYS).sort(function(a,b){return (PLAYS[b].n||0)-(PLAYS[a].n||0)}).forEach(function(k){add(recByKey(k))});
+    QUEUE.forEach(function(k){add(recByKey(k))});
+    records.slice().sort(function(a,b){return (a.artist+a.title).toLowerCase()<(b.artist+b.title).toLowerCase()?-1:1}).forEach(add);
+    order.forEach(requestCoverLow);
+  }
+  function requestCover(r){
+    if(!bridge||!r)return;
+    var k=key(r);if(ART[k]||COVER_TRIED[k]||isNone(k))return;COVER_TRIED[k]=1;
+    coverQ=coverQ.then(function(){return findCover(r)}).then(function(res){
+      if(typeof res==="string"){ART[k]=res;store(KEY_A,ART);applyCover(k);coverFails=0;diag("cover art loaded");renderMissing()}
+      else markNone(k,(res&&res.why)||"not found");
+    }).catch(function(e){
+      setTimeout(function(){delete COVER_TRIED[k]},30000);
+      if(!(e&&e.code==="rate_limited")&&++coverFails>=4&&LOW.length){LOW.length=0;diag("paused cover lookups after repeated failures ("+errText(e)+"). Play a record to try again.")}
+    });
+  }
+  function fetchMB(r){
+    var t=baseTitle(r.title).replace(/"/g,"");
+    return mbGroup(r).then(function(g){
+      if(!g)return [];
+      return mbGet("https://musicbrainz.org/ws/2/release?fmt=json&limit=8&inc=recordings&release-group="+g.id).then(function(j2){
+        var rel=(j2.releases||[]).filter(function(x){return x.status==="Official"&&x.media&&x.media.length});
+        if(!rel.length)rel=(j2.releases||[]).filter(function(x){return x.media&&x.media.length});
+        rel.sort(function(x,y){return (x.date||"9999")<(y.date||"9999")?-1:1});
+        for(var i=0;i<rel.length;i++){
+          var out=[];rel[i].media.forEach(function(m){(m.tracks||[]).forEach(function(tr){if(tr.title)out.push({t:tr.title,s:false})})});
+          if(out.length)return out;
+        }
+        return [];
+      });
+    });
+  }
+  function webTracks(V){
+    var r=V.rec();if(!bridge||!r)return Promise.resolve();
+    var k=key(r);if(!needTracks(k)||MANUAL[k])return Promise.resolve();
+    busy["t"+k]=1;refreshTracks(k);
+    return fetchMB(r).then(function(list){
+      if(MANUAL[k])return;
+      if(list.length){TRACKS[k]=list;store(KEY_T,TRACKS)}
+    }).catch(function(){}).then(function(){delete busy["t"+k];refreshTracks(k)});
+  }
 
   function fetchWiki(t,a){
     var u="https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=6&gsrsearch="+encodeURIComponent(t+" "+a+" album")
@@ -1466,6 +1710,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     var k=key(r),w=WEB[k];
     if(webBusy[k]||(w&&w.done))return;
     var t=baseTitle(r.title),a=r.artist||"";
+    requestCover(r);
     webBusy[k]=1;w=WEB[k]={};
     fetchWiki(t,a).then(function(x){if(x){w.extract=x.extract;w.url=x.url;w.wtitle=x.title}}).catch(function(){w.werr=1}).then(function(){
       delete webBusy[k];
@@ -1557,6 +1802,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   ];
   var FALLBACK=["🎵","💿","🎶","🎧","🎼","🥁","📀","🎤","🎸","🎹"];
   function icon(r){
+    return "💿";
     var t=r.title||"",a=r.artist||"",i;
     for(i=0;i<ICONS.length;i++)if(ICONS[i][0].test(t))return ICONS[i][1];
     for(i=0;i<ARTIST_ICONS.length;i++)if(ARTIST_ICONS[i][0].test(a))return ARTIST_ICONS[i][1];
@@ -1567,8 +1813,8 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     d.className="cover";
     d.style.background=gradientFor(r)||"linear-gradient(135deg,hsl("+h+",55%,42%),hsl("+((h+50)%360)+",60%,28%))";
     d.textContent=icon(r);
-    var im=ART[key(r)];
-    if(im){d.textContent="";d.style.background="#222 center/cover no-repeat url(\""+im+"\")"}
+    d.setAttribute("data-k",key(r));
+    if(ART[key(r)])paint(d,ART[key(r)]);
     if(big)d.className+=" big";
     d.setAttribute("aria-hidden","true");
     return d;
@@ -1582,7 +1828,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     var q=($("mSearch")||{value:""}).value.trim().toLowerCase();
     if(q)p=p.filter(function(r){return (r.artist+" "+r.title).toLowerCase().indexOf(q)>-1});
     var CAP=300;
-    p.slice().sort(function(a,b){return (a.artist+a.title).toLowerCase()<(b.artist+b.title).toLowerCase()?-1:1}).slice(0,CAP).forEach(function(r){
+    p.slice().sort(function(a,b){return ((a.artist+a.title).toLowerCase()<(b.artist+b.title).toLowerCase()?-1:1)}).slice(0,CAP).forEach(function(r){
       var li=document.createElement("li"),box=document.createElement("div");
       box.className="mi";
       var t=document.createElement("div");t.className="mt";t.textContent=(FAVS[key(r)]?"\u2605 ":"")+r.title+((NOTES[key(r)]||MANUAL[key(r)])?" \u270e":"");
@@ -1604,6 +1850,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       rb.appendChild(lm);rb.appendChild(pb);rb.appendChild(queueBtn(r));
       li.appendChild(rb);ul.appendChild(li);
     });
+    p.slice().sort(function(a,b){return (a.artist+a.title).toLowerCase()<(b.artist+b.title).toLowerCase()?-1:1}).slice(0,12).forEach(requestCoverLow);
     if(p.length>CAP){var n=document.createElement("li");n.textContent="Showing the first "+CAP+" of "+p.length+". Narrow the filters to see the rest.";ul.appendChild(n)}
     ul.scrollTop=st0;
   }
@@ -1741,17 +1988,30 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   else setRecords(fromText(DEFAULT_CSV));
   renderQueue();
   var nr0=nowRec();if(nr0){loadWeb(nr0);renderNow()}
-  /* Optional: point this at your own proxy (see README) to turn Claude summaries and standout tracks on */
-  var CLAUDE_PROXY=window.SPIN_CLAUDE_PROXY||"";
-  if(CLAUDE_PROXY&&!(window.claude&&typeof window.claude.use==="function")){
-    sampleFn=function(prompt){return fetch(CLAUDE_PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:prompt})})
-      .then(function(x){if(!x.ok)throw {code:"error"};return x.json()}).then(function(j){return {text:j.text||""}})};
+  if(!(window.claude&&typeof window.claude.use==="function")){
+    /* Running as a normal web page: look things up directly from the browser */
+    bridge={direct:true};diag("online lookups from your browser");
+    renderTop();renderMissing();queueAllCovers();try{updatePool()}catch(e){}
+    var r0=nowRec();if(r0)loadWeb(r0);var pr0=pvRec();if(pr0)loadWeb(pr0);
+    autoFetch(NP);autoFetch(PV);
   }
-  autoFetch(NP);autoFetch(PV);
   if(window.claude&&typeof window.claude.use==="function"){
+    diag("checking for the app\u2019s browser\u2026");
+    window.claude.use("mcp").then(function(m){
+      if(!m){diag("not available in this view (the app\u2019s browser access wasn\u2019t granted to the page)");return}
+      return m.listTools(BSRV).then(function(l){
+        var sv=(l.servers||[])[0];if(!sv||!(sv.tools||[]).length){diag("the app\u2019s browser isn\u2019t reachable from this view (open the artifact in the Claude desktop app)");return}
+        bridge=m;diag("connected to the app\u2019s browser");
+        renderTop();renderMissing();queueAllCovers();try{updatePool()}catch(e){}
+        var r=nowRec();if(r)loadWeb(r);var pr=pvRec();if(pr)loadWeb(pr);
+        autoFetch(NP);autoFetch(PV);
+      });
+    }).catch(function(e){diag("couldn\u2019t check the app\u2019s browser ("+((e&&(e.code||e.message))||"error")+")")});
     window.claude.use("sample").then(function(s){sampleFn=s;var r=nowRec();if(r){renderAbout(r,NP);renderTracks(r,NP)}var pr=pvRec();if(pr){renderAbout(pr,PV);renderTracks(pr,PV)}autoFetch(NP);autoFetch(PV)}).catch(function(){});
   }
 })();
 </script>
 </body>
 </html>
+
+</body></html>
