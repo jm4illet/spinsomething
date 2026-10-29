@@ -285,6 +285,9 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 <div class="card">
   <details id="loader" open>
     <summary>Load / update collection</summary>
+    <div style="display:flex;gap:6px;margin:8px 0 2px"><input type="search" id="dcUser" placeholder="Discogs username" autocapitalize="off" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><button class="btn" id="dcGo" type="button">Load from Discogs</button></div>
+    <p class="meta" id="dcMsg">Works with public collections. Replaces the records below with that collection; your spins, notes and covers stay.</p>
+    <p class="meta" style="margin:10px 0 4px">Or use a CSV export:</p>
     <ol>
       <li>On Discogs, go to <a href="https://www.discogs.com/users/export" target="_blank" rel="noopener">Settings → Export</a> and export your <b>Collection</b> (CSV).</li>
       <li>Open the CSV you receive and choose it below, or paste its contents.</li>
@@ -1577,7 +1580,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   function weservUrl(id){return "https://images.weserv.nl/?url="+encodeURIComponent("coverartarchive.org/release-group/"+id+"/front-250")+"&w=120&h=120&fit=cover&output=jpg&q=65&encoding=base64"}
   function imgOrNull(u){return bridgeImage(u).catch(function(e){if(e&&e.code==="nocover")return null;throw e})}
   /* Strict search first; if that finds no usable cover, try the looser candidates in order. Returns a data URI or {why} */
-  function findCover(r){
+  function findCoverMB(r){
     return mbGroup(r).then(function(g){return g?imgOrNull(weservUrl(g.id)):null}).then(function(du){
       if(du)return du;
       return fallbackCandidates(r).then(function(cs){
@@ -1589,6 +1592,31 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
         }
         return tryNext();
       });
+    });
+  }
+  /* Third source for the web version: Apple's public iTunes Search API (no key needed) */
+  var itT=0;
+  function itunesCover(r){
+    var a=nw(r.artist||""),vars=titleVariants(r),wait=Math.max(0,itT+3200-Date.now());itT=Date.now()+wait;
+    return bWait(wait).then(function(){
+      return fetch("https://itunes.apple.com/search?entity=album&limit=10&term="+encodeURIComponent((r.artist||"")+" "+baseTitle(r.title)))
+    }).then(function(x){if(!x.ok)throw new Error("http "+x.status);return x.json()}).then(function(j){
+      var best=null,bs=0;
+      (j.results||[]).forEach(function(x){
+        var sim=Math.max.apply(null,vars.map(function(v){return titleSim(x.collectionName,v)})),an=nw(x.artistName);
+        var ok=!a||an===a||(an.length>=4&&a.length>=4&&(a.indexOf(an)>-1||an.indexOf(a)>-1));
+        if(ok&&sim>=0.6&&sim>bs){bs=sim;best=x}
+      });
+      if(!best||!best.artworkUrl100)return null;
+      var src=best.artworkUrl100.replace(/^https?:\/\//,"").replace(/\d+x\d+bb/,"200x200bb");
+      return imgOrNull("https://images.weserv.nl/?url="+encodeURIComponent(src)+"&w=120&h=120&fit=cover&output=jpg&q=65&encoding=base64");
+    }).catch(function(e){if(e&&e.code==="rate_limited")throw e;return null});
+  }
+  function findCover(r){
+    return findCoverMB(r).then(function(res){
+      if(typeof res==="string")return res;
+      if(!(bridge&&bridge.direct))return res;
+      return itunesCover(r).then(function(d){return d||(res&&res.why?{why:res.why+"; also not found on iTunes"}:res)});
     });
   }
   function mbGroup(r){
@@ -1947,6 +1975,35 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     if(!list.length){$("status").textContent="Couldn’t find any records in that. Check the file and try again.";return}
     setRecords(list);
   }
+  /* Discogs: pull a public collection by username */
+  var dcBusy=false;
+  function dcFmt(fs){return (fs||[]).map(function(f){var d=f.descriptions||[],q=(+f.qty>1)?f.qty+"x":"";return f.name==="Vinyl"&&d.length?q+d.join(", "):q+f.name+(d.length?", "+d.join(", "):"")}).join(", ")}
+  function dcLoad(){
+    var u=$("dcUser").value.trim().replace(/^.*discogs\.com\/user\//i,"").replace(/[\/?#].*$/,"");
+    if(!u||dcBusy)return;
+    dcBusy=true;$("dcGo").disabled=true;var all=[];
+    function msg(t){$("dcMsg").textContent=t}
+    function page(n){
+      msg("Loading "+u+"’s collection"+(all.length?" ("+all.length+" so far)":"")+"…");
+      return getJSON("https://api.discogs.com/users/"+encodeURIComponent(u)+"/collection/folders/0/releases?per_page=100&page="+n+"&sort=artist").then(function(j){
+        if(!j||j.message&&!j.releases)throw new Error(j&&j.message||"not found");
+        (j.releases||[]).forEach(function(x){var b=x.basic_information||{};
+          all.push({artist:clean(((b.artists||[])[0]||{}).name||""),title:(b.title||"").trim(),label:clean(((b.labels||[])[0]||{}).name||""),format:dcFmt(b.formats),
+            year:b.year||0,press:b.year||0,folder:"Collection",id:"",genre:(b.genres||[]).concat(b.styles||[]).join(", ")})});
+        var pages=(j.pagination&&j.pagination.pages)||1;
+        if(n<pages)return bWait(2500).then(function(){return page(n+1)});
+      });
+    }
+    page(1).then(function(){
+      if(!all.length){msg("That collection is empty or not public. In Discogs, check Settings → Privacy.");return}
+      setRecords(all);msg("Loaded "+all.length+" records from "+u+".");
+    }).catch(function(e){
+      var m=String(e&&e.message||e);
+      msg(/404|not exist|not found/i.test(m)?"No Discogs user called “"+u+"”.":/403|private|permission/i.test(m)?"That collection is private. Make it public in Discogs → Settings → Privacy.":"Couldn’t reach Discogs ("+m+"). "+(all.length?"Nothing was changed.":"Try again in a minute."));
+    }).then(function(){dcBusy=false;$("dcGo").disabled=false});
+  }
+  $("dcGo").onclick=dcLoad;
+  $("dcUser").onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();dcLoad()}};
   $("file").onchange=function(e){
     var f=e.target.files[0];if(!f)return;
     var rd=new FileReader();rd.onload=function(){ingest(rd.result)};rd.readAsText(f);
