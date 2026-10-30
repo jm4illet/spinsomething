@@ -960,9 +960,13 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     try{$("npCard").scrollIntoView({behavior:"smooth",block:"nearest"})}catch(e){}
   }
   function addPlayBtn(r){
-    var b=document.createElement("button");b.className="btn ghost";b.style.marginTop="12px";
+    var row=document.createElement("div");row.style.cssText="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px";
+    var pv=document.createElement("button");pv.className="btn ghost";pv.style.marginTop="0";
+    pv.textContent="Preview";pv.setAttribute("aria-label","Preview "+r.title);pv.onclick=function(){openPreview(r)};
+    var b=document.createElement("button");b.className="btn ghost";b.style.marginTop="0";
     b.textContent="\u25b6 Play this";b.onclick=function(){setNow(r)};
-    $("result").appendChild(b);
+    row.appendChild(pv);row.appendChild(b);
+    $("result").appendChild(row);
   }
   /* Two "views" share one card layout: Now playing (np) and the Learn more preview (pv) */
   var pvKey="";
@@ -1335,7 +1339,16 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     var sh=document.createElement("div");sh.className="vsheen";w.appendChild(sh);
     return w;
   }
+  /* The Pick card sits in the left column above Most played when nothing is playing or previewed,
+     and moves to the right column above Filters once a record is playing or previewed */
+  function placeStage(){
+    var st=$("stage"),L=document.querySelector(".colL"),R=document.querySelector(".colR");
+    if(!st||!L||!R)return;
+    if(!nowKey&&!pvKey){var t=$("topCard");if(st.parentNode!==L||st.nextElementSibling!==t)L.insertBefore(st,t)}
+    else{var f=$("filters");if(st.parentNode!==R||st.nextElementSibling!==f)R.insertBefore(st,f)}
+  }
   function renderView(V){
+    placeStage();
     var r=V.rec();
     $(V.p+"Card").hidden=!r;
     if(!r)return;
@@ -1855,14 +1868,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     /* Extra detail from other open sources: MusicBrainz tags and ratings, and the Discogs release page when we know its id */
     if(!(MORE[k]&&MORE[k].xdone)&&!MORE_BUSY[k]){
       MORE_BUSY[k]=1;var x=MORE[k]||(MORE[k]={});
-      var p1=mbGroup(r).then(function(g){
-        if(!g)return;
-        return mbGet("https://musicbrainz.org/ws/2/release-group/"+g.id+"?inc=genres+ratings&fmt=json").then(function(j){
-          x.mbGenres=(j.genres||[]).sort(function(a,b){return (b.count||0)-(a.count||0)}).slice(0,6).map(function(z){return z.name});
-          if(j.rating&&j.rating.value)x.mbRating=j.rating.value;x.mbVotes=(j.rating&&j.rating["votes-count"])||0;
-          x.mbUrl="https://musicbrainz.org/release-group/"+g.id;
-        });
-      }).catch(function(){});
+      var p1=Promise.resolve();
       var did=r.id||r.did;
       var p2=did?getJSON("https://api.discogs.com/releases/"+encodeURIComponent(did)).then(function(j){
         if(!j||j.message)return;
@@ -1943,7 +1949,6 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     }
     if(x.dcGenres&&x.dcGenres.length)line("Discogs",[x.dcGenres.join(", "),x.dcCountry,x.dcYear||""].filter(Boolean).join(" · ")+(x.dcRating?" · "+x.dcRating.toFixed(2)+"/5 ("+x.dcVotes+" ratings)":""),x.dcUrl);
     if(x.dcNotes){var n=line("Release notes",x.dcNotes);n.className="nt"}
-    if(x.mbGenres&&x.mbGenres.length||x.mbRating)line("MusicBrainz",[x.mbGenres&&x.mbGenres.join(", "),x.mbRating?x.mbRating.toFixed(1)+"/5 ("+x.mbVotes+" votes)":""].filter(Boolean).join(" · "),x.mbUrl);
     M.hidden=!M.childNodes.length;
   }
   function askAbout(V){
