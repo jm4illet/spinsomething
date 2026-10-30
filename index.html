@@ -63,7 +63,8 @@ a{color:var(--accent)}
 .about{font-family:system-ui,sans-serif;font-size:14px;line-height:1.55;margin:12px 0 6px}
 .playbtn{margin-left:auto;flex:0 0 auto}
 main{position:relative}
-h1{padding-right:56px}
+h1{padding-right:56px;margin-bottom:20px}
+h1+.sub:not([hidden]){margin-top:-12px}
 .tgl{position:absolute;top:22px;right:18px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .tgl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .cols>div{min-width:0}
@@ -146,8 +147,6 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 <button class="tgl" id="themeBtn" type="button" aria-label="Toggle dark mode"></button>
 <h1>Spin Something</h1>
 <p class="sub" id="status">Load your collection to get started.</p>
-<p class="meta" id="webDiag" style="margin:-12px 0 12px;font-size:12px" hidden></p>
-<details id="missDet" hidden style="margin:-4px 0 12px;font-size:12px"><summary id="missSum" style="color:var(--muted);cursor:pointer"></summary><ul id="missList"></ul></details>
 
 <div class="cols">
 <div class="colL">
@@ -357,6 +356,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <ul id="logList" style="margin-top:6px"></ul>
   </details>
 </div>
+<p class="meta" id="webDiag" style="margin:0 0 16px;font-size:12px" hidden></p>
 </div>
 </div>
 </main>
@@ -634,7 +634,7 @@ Kaytranada,99.9%,"2xLP, Album",XL Recordings,2016,2016,,XLLP 765,Collection`;
     renderNow();
     var has=list.length>0;
     $("filters").hidden=!has; $("pick").disabled=!has; $("logCard").hidden=!has;
-    $("status").textContent=has?list.length+" records loaded.":"Load your collection to get started.";
+    $("status").textContent=has?"":"Load your collection to get started.";$("status").hidden=has;
     if(has)$("loader").open=false;
     updatePool();
   }
@@ -1145,7 +1145,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     else{
       var d="";try{d=new Date(o.last).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}catch(e){}
       el.textContent="";var pl=document.createElement("span");pl.className="spinpill";pl.textContent=n+"\u00d7";el.appendChild(pl);
-      el.appendChild(document.createTextNode("Spun "+n+(n===1?" time":" times")+(d?" \u00b7 last "+d:"")));
+      pl.title="Spun "+n+(n===1?" time":" times");if(d)el.appendChild(document.createTextNode("Last spun on "+d));
     }
     var ub=$(V.p+"Undo");if(ub)ub.hidden=!n;
     var f=!!FAVS[vk],b=$(V.p+"Fav");
@@ -1220,7 +1220,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
         }
         ul.appendChild(li);
       });
-      note.textContent=MANUAL[k]?(anyStar?"Bold tracks are the standouts and link to a YouTube search. ":"")+"Tracklist entered by you.":(known(r)&&known(r).tracks)?((known(r).variants&&known(r).variants[nw(r.title)])||known(r)).note||known(r).tracksNote:(anyStar?"Bold tracks are the standouts and link to a YouTube search. ":"")+"Listed by Claude from general knowledge, so double-check it against your pressing.";
+      note.textContent=MANUAL[k]?(anyStar?"Bold tracks are the standouts and link to a YouTube search. ":"")+"Tracklist entered by you.":(known(r)&&known(r).tracks)?((known(r).variants&&known(r).variants[nw(r.title)])||known(r)).note||known(r).tracksNote:(anyStar?"Bold tracks are the standouts and link to a YouTube search. ":"")+trSrcNote(k);
     }else if(isBusy){
       note.textContent="Getting tracklist\u2026";
     }else if(f==="unknown"){
@@ -1754,13 +1754,61 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       });
     });
   }
+  /* Track listing from the Wikipedia article's "Track listing" section (preferred), read from the section's HTML */
+  var TRSRC=read("spin_trsrc_v1")||{};
+  function trSrcNote(k){
+    var x=TRSRC[k];
+    if(x&&x.s==="wikipedia")return "Track listing from Wikipedia (CC BY-SA 4.0). Your pressing may differ.";
+    if(x&&x.s==="musicbrainz")return "Track listing from MusicBrainz. Your pressing may differ.";
+    return "Listed by Claude from general knowledge, so double-check it against your pressing.";
+  }
+  function cleanTrack(x){
+    x=(x||"").replace(/\[[^\]]*\]/g,"").replace(/\s+/g," ").trim();
+    var m=/^["“„](.+?)["”]/.exec(x);if(m)x=m[1];
+    return x.replace(/^["“”]+|["“”]+$/g,"").trim();
+  }
+  function parseWikiTracks(html){
+    var doc=new DOMParser().parseFromString(html,"text/html"),out=[];
+    [].forEach.call(doc.querySelectorAll("sup,style,.reference"),function(n){n.remove()});
+    [].forEach.call(doc.querySelectorAll("table.tracklist tr"),function(tr){
+      var th=tr.querySelector("th"),tds=tr.querySelectorAll("td");
+      if(!tds.length||/total length/i.test(tr.textContent))return;
+      if(th&&!/^\s*\d+[.)]?\s*$|^\s*[A-Z]?\d+[.)]?\s*$/.test(th.textContent))return;
+      var t=cleanTrack(tds[0].textContent);if(t&&!/^(total|no\.?|title)$/i.test(t))out.push({t:t,s:false});
+    });
+    if(!out.length)[].forEach.call(doc.querySelectorAll("ol > li"),function(li){
+      var t=cleanTrack(li.textContent.split(/\s+[–—-]\s+/)[0]);if(t&&t.length<120)out.push({t:t,s:false});
+    });
+    return out;
+  }
+  function fetchWikiTracks(r){
+    var k=key(r),w=WEB[k]||{};
+    var tp=w.wtitle?Promise.resolve({title:w.wtitle,url:w.url}):fetchWiki(baseTitle(r.title),r.artist||"");
+    return tp.then(function(x){
+      if(!x)return null;
+      var base="https://en.wikipedia.org/w/api.php?format=json&origin=*&action=parse&redirects=1&page="+encodeURIComponent(x.title);
+      return getJSON(base+"&prop=sections").then(function(j){
+        var secs=(j.parse&&j.parse.sections)||[],sec=null;
+        for(var i=0;i<secs.length&&!sec;i++)if(/^(track\s*-?\s*(listing|list)s?|tracks)$/i.test(String(secs[i].line).replace(/<[^>]+>/g,"").trim()))sec=secs[i];
+        if(!sec)return null;
+        return getJSON(base+"&prop=text&disableeditsection=1&disabletoc=1&section="+sec.index).then(function(j2){
+          var html=j2.parse&&j2.parse.text&&(j2.parse.text["*"]||j2.parse.text);
+          var list=typeof html==="string"?parseWikiTracks(html):[];
+          return list.length>=2?{list:list,url:x.url}:null;
+        });
+      });
+    });
+  }
   function webTracks(V){
     var r=V.rec();if(!bridge||!r)return Promise.resolve();
     var k=key(r);if(!needTracks(k)||MANUAL[k])return Promise.resolve();
     busy["t"+k]=1;refreshTracks(k);
-    return fetchMB(r).then(function(list){
+    return fetchWikiTracks(r).catch(function(){return null}).then(function(wt){
+      if(wt)return {list:wt.list,src:{s:"wikipedia",url:wt.url}};
+      return fetchMB(r).then(function(l){return {list:l,src:{s:"musicbrainz"}}});
+    }).then(function(res){
       if(MANUAL[k])return;
-      if(list.length){TRACKS[k]=list;store(KEY_T,TRACKS)}
+      if(res.list.length){TRACKS[k]=res.list;store(KEY_T,TRACKS);TRSRC[k]=res.src;store("spin_trsrc_v1",TRSRC)}
     }).catch(function(){}).then(function(){delete busy["t"+k];refreshTracks(k)});
   }
 
