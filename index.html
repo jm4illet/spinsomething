@@ -2143,6 +2143,62 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     if(!list.length){$("status").textContent="Couldn’t find any records in that. Check the file and try again.";return}
     setRecords(list);
   }
+  /* Discogs reports the year of the pressing. The original release year comes from the Discogs master release,
+     or from MusicBrainz when a record has no master. Updates happen in the background and are remembered. */
+  var ORIG=read("spin_orig_v1")||{},yrGen=0;
+  function refreshDecades(){
+    store(KEY_C,records);
+    fill($("fDecade"),uniq(records.map(function(r){return decade(r.year)})),"Any decade");
+    try{updatePool()}catch(e){}
+  }
+  function useOrig(r,y,src){
+    y=parseInt(y,10);if(!y||y<1900)return false;
+    if(r.press&&y>r.press)return false;
+    r.year=y;r.origYear=src;return true;
+  }
+  function enrichYears(){
+    var gen=++yrGen;
+    var todo=records.filter(function(r){return r.master!==undefined&&!r.origYear});
+    if(!todo.length)return;
+    var changed=0;
+    todo.forEach(function(r){if(r.master&&ORIG[r.master]&&useOrig(r,ORIG[r.master],"discogs"))changed++});
+    if(changed)refreshDecades();
+    var queue=todo.filter(function(r){return !r.origYear&&r.master&&!ORIG["x"+r.master]});
+    var noMaster=todo.filter(function(r){return !r.master});
+    var done=0,since=0;
+    function status(){diag(queue.length+noMaster.length?"checking original release years ("+(queue.length+noMaster.length)+" left)":"original release years are up to date")}
+    function flush(){if(since){since=0;refreshDecades()}}
+    function nextMaster(){
+      var r=queue.shift();
+      if(!r||gen!==yrGen){return Promise.resolve()}
+      if(r.origYear)return nextMaster();
+      status();
+      var id=r.master,tries=0;
+      function go(){
+        return bWait(2600).then(function(){return getJSON("https://api.discogs.com/masters/"+id)}).then(function(j){
+          var y=j&&j.year;
+          if(y&&y>0)ORIG[id]=y;else ORIG["x"+id]=1;
+          store("spin_orig_v1",ORIG);
+          records.forEach(function(q){if(q.master===id&&!q.origYear&&useOrig(q,y,"discogs"))since++});
+          if(since>=1)flush();
+        }).catch(function(e){
+          if(/429|too many|rate/i.test(String(e&&(e.message||e.code)))&&tries++<3)return bWait(30000).then(go);
+        });
+      }
+      return go().then(nextMaster);
+    }
+    function nextNoMaster(){
+      var r=noMaster.shift();
+      if(!r||gen!==yrGen)return Promise.resolve();
+      status();
+      return mbGroup(r).then(function(g){
+        var y=g&&g["first-release-date"]&&g["first-release-date"].slice(0,4);
+        if(y&&useOrig(r,y,"musicbrainz"))since++;
+        if(since>=1)flush();
+      }).catch(function(){}).then(nextNoMaster);
+    }
+    nextMaster().then(nextNoMaster).then(function(){if(gen!==yrGen)return;flush();store(KEY_C,records);diag("original release years are up to date")});
+  }
   /* Discogs: pull a public collection by username */
   var dcBusy=false;
   function dcFmt(fs){return (fs||[]).map(function(f){var d=f.descriptions||[],q=(+f.qty>1)?f.qty+"x":"";return f.name==="Vinyl"&&d.length?q+d.join(", "):q+f.name+(d.length?", "+d.join(", "):"")}).join(", ")}
@@ -2157,14 +2213,14 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
         if(!j||j.message&&!j.releases)throw new Error(j&&j.message||"not found");
         (j.releases||[]).forEach(function(x){var b=x.basic_information||{};
           all.push({artist:clean(((b.artists||[])[0]||{}).name||""),title:(b.title||"").trim(),label:clean(((b.labels||[])[0]||{}).name||""),format:dcFmt(b.formats),
-            year:b.year||0,press:b.year||0,folder:"Collection",id:"",did:String(x.id||b.id||""),genre:(b.genres||[]).concat(b.styles||[]).join(", ")})});
+            year:b.year||0,press:b.year||0,master:b.master_id||0,folder:"Collection",id:"",did:String(x.id||b.id||""),genre:(b.genres||[]).concat(b.styles||[]).join(", ")})});
         var pages=(j.pagination&&j.pagination.pages)||1;
         if(n<pages)return bWait(2500).then(function(){return page(n+1)});
       });
     }
     page(1).then(function(){
       if(!all.length){msg("That collection is empty or not public. In Discogs, check Settings → Privacy.");return}
-      setRecords(all);msg("Loaded "+all.length+" records from "+u+".");
+      setRecords(all);msg("Loaded "+all.length+" records from "+u+". Looking up original release years\u2026");enrichYears();
     }).catch(function(e){
       var m=String(e&&e.message||e);
       msg(/404|not exist|not found/i.test(m)?"No Discogs user called “"+u+"”.":/403|private|permission/i.test(m)?"That collection is private. Make it public in Discogs → Settings → Privacy.":"Couldn’t reach Discogs ("+m+"). "+(all.length?"Nothing was changed.":"Try again in a minute."));
@@ -2234,7 +2290,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   if(!(window.claude&&typeof window.claude.use==="function")){
     /* Running as a normal web page: look things up directly from the browser */
     bridge={direct:true};diag("online lookups from your browser");
-    renderTop();renderMissing();queueAllCovers();try{updatePool()}catch(e){}
+    renderTop();renderMissing();queueAllCovers();enrichYears();try{updatePool()}catch(e){}
     var r0=nowRec();if(r0)loadWeb(r0);var pr0=pvRec();if(pr0)loadWeb(pr0);
     autoFetch(NP);autoFetch(PV);
   }
@@ -2245,7 +2301,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       return m.listTools(BSRV).then(function(l){
         var sv=(l.servers||[])[0];if(!sv||!(sv.tools||[]).length){diag("the app\u2019s browser isn\u2019t reachable from this view (open the artifact in the Claude desktop app)");return}
         bridge=m;diag("connected to the app\u2019s browser");
-        renderTop();renderMissing();queueAllCovers();try{updatePool()}catch(e){}
+        renderTop();renderMissing();queueAllCovers();enrichYears();try{updatePool()}catch(e){}
         var r=nowRec();if(r)loadWeb(r);var pr=pvRec();if(pr)loadWeb(pr);
         autoFetch(NP);autoFetch(PV);
       });
