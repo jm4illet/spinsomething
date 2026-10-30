@@ -132,6 +132,10 @@ body.hasmini main{padding-bottom:84px}
 .favstar{position:absolute;top:10px;right:12px;background:none;border:0;padding:4px 6px;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;border-radius:8px}
 .favstar[aria-pressed=true]{color:#e0a800}
 .favstar:hover{background:rgba(128,128,128,.12)}
+.dcbox{display:flex;flex-direction:column;gap:8px;margin:10px 0 4px;max-width:360px}
+.dcbox label{margin:0}
+.dcbox input{width:100%;box-sizing:border-box;padding:10px 12px;font-size:15px}
+.dcbox .btn{margin:0;padding:10px 20px;font-size:15px;width:100%}
 </style>
 </head>
 <body>
@@ -321,7 +325,11 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 <div class="card">
   <details id="loader" open>
     <summary>Load / update collection</summary>
-    <div style="display:flex;gap:6px;margin:8px 0 2px"><input type="search" id="dcUser" placeholder="Discogs username" autocapitalize="off" autocomplete="off" spellcheck="false" style="flex:1;min-width:0"><button class="btn" id="dcGo" type="button">Load from Discogs</button></div>
+    <div class="dcbox">
+      <label for="dcUser">Discogs username</label>
+      <input type="search" id="dcUser" placeholder="e.g. your-username" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <button class="btn" id="dcGo" type="button">Load from Discogs</button>
+    </div>
     <p class="meta" id="dcMsg">Works with public collections. Replaces the records below with that collection; your spins, notes and covers stay.</p>
     <p class="meta" style="margin:10px 0 4px">Or use a CSV export:</p>
     <ol>
