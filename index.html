@@ -85,7 +85,7 @@ h1+.sub:not([hidden]){margin-top:-12px}
 .stgl{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .stgl:hover{color:var(--ink)}
 .stgl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.stage.collapsed{padding:14px 52px 14px 18px}
+.stage.collapsed{padding:14px 52px}
 .stage.collapsed .disc,.stage.collapsed #result{display:none}
 .stage.collapsed #pick{margin-top:0}
 .vwrap{position:relative;width:120px;height:120px;flex:0 0 auto}
@@ -133,7 +133,9 @@ body.hasmini main{padding-bottom:84px}
 .wbox .about{margin:10px 0 4px}
 .wbox .nplinks{margin:8px 0 2px}
 .wbox .nplinks a{background:var(--card)}
-.wbox .src{position:absolute;top:6px;right:10px;margin:0;line-height:1}
+.wbox .src{margin:6px 0 0;line-height:1.4}
+.wbox .src:has(a.info){position:absolute;top:6px;right:10px;margin:0;line-height:1}
+.wbox .src:empty{display:none}
 .wbox .about{padding-right:22px}
 .src a.info{text-decoration:none;font-size:14px;color:var(--muted)}
 .favstar{position:absolute;top:10px;right:12px;background:none;border:0;padding:4px 6px;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;border-radius:8px}
@@ -150,7 +152,7 @@ body.hasmini main{padding-bottom:84px}
 @media (max-width:520px){.prow{flex-wrap:wrap}.prow .ptop{flex-basis:100%}.prow .rbtns{width:100%}.prow .rbtns .btn{flex:1}}
 .qrow.tp .rbtns{flex:0 0 auto;gap:6px;margin:0}
 .qrow.tp .rbtns .btn{flex:0 0 auto;margin:0}
-@media (max-width:520px){.qrow.tp{flex-wrap:wrap}.qrow.tp .mi{flex:1 1 calc(100% - 80px)}.qrow.tp .rbtns{width:100%;padding-left:28px}.qrow.tp .rbtns .btn{flex:1}}
+@media (max-width:520px){.qrow.tp{flex-wrap:wrap}.qrow.tp .mi{flex:1 1 0;min-width:0}.qrow.tp .rbtns{width:100%;flex:0 0 100%;padding:0;box-sizing:border-box;flex-direction:row;justify-content:center;align-items:center}.qrow.tp .rbtns .btn{flex:1;width:auto;text-align:center}}
 .trhead .trtog{display:none!important}
 .trhead h2.trh{display:list-item;list-style:disclosure-open inside;font-size:inherit;font-weight:600;font-family:system-ui,sans-serif;margin:0}
 #npTr.trc .trhead h2.trh,#pvTr.trc .trhead h2.trh{list-style-type:disclosure-closed}
@@ -356,7 +358,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <p class="meta">Or paste CSV text, or one record per line as <i>Artist - Title | Genre</i> (genre optional). A CSV needs a “Genre” or “Style” column for the genre filter to work.</p>
     <textarea id="paste" placeholder="Artist - Title"></textarea>
     <button class="btn ghost" id="load" style="margin-top:8px">Load pasted text</button>
-    <p class="meta">Your collection is saved only in this browser.</p>
+    <p class="meta" id="syncMsg">Your collection is saved only in this browser.</p>
   </details>
 </div>
 
@@ -365,8 +367,8 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <summary>Log past listens</summary>
     <p class="meta" style="margin-top:8px">Played something earlier without logging it? Find the record and add a listen to its count. Most played updates right away.</p>
     <div class="row" style="margin-top:6px">
-      <div style="flex:2 1 160px"><label for="logSearch">Record</label><input type="text" id="logSearch" placeholder="Search by artist or title" autocomplete="off"></div>
-      <div style="flex:1 1 130px"><label for="logDate">Date listened</label><input type="date" id="logDate" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)">
+      <div style="flex:1 1 100%"><label for="logSearch">Record</label><input type="text" id="logSearch" placeholder="Search by artist or title" autocomplete="off"></div>
+      <div style="flex:1 1 100%;min-width:0"><label for="logDate">Date listened</label><input type="date" id="logDate" style="width:100%;max-width:100%;min-width:0;box-sizing:border-box;-webkit-appearance:none;appearance:none;display:block;font-size:16px;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)">
         <div style="display:flex;gap:6px;margin-top:6px"><button type="button" class="btn ghost qbtn" id="logToday" style="flex:1">Today</button><button type="button" class="btn ghost qbtn" id="logYest" style="flex:1">Yesterday</button></div></div>
     </div>
     <div class="meta" id="logMsg" style="margin-top:6px" aria-live="polite"></div>
@@ -558,7 +560,7 @@ Kaytranada,99.9%,"2xLP, Album",XL Recordings,2016,2016,,XLLP 765,Collection`;
   var records=[], history=[], seen={}, current=null, nowKey=read(KEY_N)||"", ART=read(KEY_A)||{}, ABOUT=read(KEY_B)||{}, sampleFn=null;
   var $=function(id){return document.getElementById(id)};
 
-  function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+  function store(k,v){var s;try{s=JSON.stringify(v);localStorage.setItem(k,s)}catch(e){}if(s!==undefined&&SYNCMAP&&SYNCMAP[k]&&!applying)syncTouch(k)}
   function read(k){try{var s=localStorage.getItem(k);return s?JSON.parse(s):null}catch(e){return null}}
 
   function parseCSV(text){
@@ -631,6 +633,7 @@ Kaytranada,99.9%,"2xLP, Album",XL Recordings,2016,2016,,XLLP 765,Collection`;
     {artist:"Madonna",title:"Confessions II",format:/\bPic\b/i,also:/./,to:"Confessions II (Picture Disc)"},
     {artist:"Madonna",title:"Madonna",format:/\bRE\b/,also:/./,to:"Madonna (Repressing)"}];
   function setRecords(list){
+    DEFCOLL=false;
     list.forEach(function(r){
       RENAMES.forEach(function(x){
         if(r.artist===x.artist&&r.title===x.title&&x.format.test(r.format||"")&&x.also.test(r.format||""))r.title=x.to;
@@ -2305,9 +2308,167 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   history=read(KEY_H)||[];
   renderHist();
   if(saved&&saved.length)setRecords(saved);
-  else setRecords(fromText(DEFAULT_CSV));
+  else{setRecords(fromText(DEFAULT_CSV));DEFCOLL=true}
   renderQueue();
   var nr0=nowRec();if(nr0){loadWeb(nr0);renderNow()}
+  /* ===== cloud sync: keeps this person's data in the artifact's private db (data/users/<id>/) ===== */
+  var SYNCMAP, SMETA, dbh=null, SUID=null, syncReady=false, syncDead=false, syncTimer=null, SQ=Promise.resolve(), lastRecon=0, applying=false, DEFCOLL;
+  var CH=70000;
+  function hsh(s){var h=2166136261,i,n=s.length;for(i=0;i<n;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return n.toString(36)+"-"+(h>>>0).toString(36)}
+  function smeta(){if(!SMETA)SMETA=read("spin_sync_meta")||{};return SMETA}
+  function smk(k){var m=smeta();return m[k]||(m[k]={})}
+  function savemeta(){try{localStorage.setItem("spin_sync_meta",JSON.stringify(SMETA||{}))}catch(e){}}
+  function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+  function setSync(msg){var e=$("syncMsg");if(e&&msg)e.textContent=msg}
+  function isEmpty(v){return !v||(Array.isArray(v)?!v.length:!Object.keys(v).length)}
+  function sreg(k,kind,get,set){SYNCMAP[k]={kind:kind,get:get,set:set}}
+  SYNCMAP={};
+  sreg(KEY_C,"lww",function(){return records},function(v){setRecords(v)});
+  sreg(KEY_H,"lww",function(){return history},function(v){history=v});
+  sreg(KEY_Q,"lww",function(){return QUEUE},function(v){QUEUE=v});
+  sreg(KEY_F,"lww",function(){return FAVS},function(v){FAVS=v});
+  sreg(KEY_NOTE,"lww",function(){return NOTES},function(v){NOTES=v});
+  sreg(KEY_P,"plays",function(){return PLAYS},function(v){PLAYS=v});
+  sreg(KEY_T,"map",function(){return TRACKS},function(v){TRACKS=v});
+  sreg(KEY_TRIM,"map",function(){return TRIMMED},function(v){TRIMMED=v});
+  sreg(KEY_SEED,"map",function(){return SEEDED},function(v){SEEDED=v});
+  sreg(KEY_MAN,"map",function(){return MANUAL},function(v){MANUAL=v});
+  sreg(KEY_B,"map",function(){return ABOUT},function(v){ABOUT=v});
+  sreg(KEY_W,"map",function(){return WEB},function(v){WEB=v});
+  sreg("spin_extra_v1","map",function(){return EXTRA},function(v){EXTRA=v});
+  sreg("spin_trsrc_v1","map",function(){return TRSRC},function(v){TRSRC=v});
+  sreg("spin_orig_v1","map",function(){return ORIG},function(v){ORIG=v});
+  sreg(KEY_A,"map",function(){return ART},function(v){ART=v});
+  var SYNC_ORDER=Object.keys(SYNCMAP);
+
+  function syncTouch(k){
+    var M=smk(k);M.lt=Date.now();savemeta();
+    if(syncReady&&!syncDead){clearTimeout(syncTimer);syncTimer=setTimeout(function(){enq(reconDirty)},5000)}
+  }
+  function enq(fn){SQ=SQ.then(fn).catch(syncFail);return SQ}
+  function syncFail(e){
+    var c=e&&e.code;
+    if(c==="quota_exceeded"){syncDead=true;setSync("Cloud sync paused: the artifact’s storage is full. Your data is still saved in this browser.")}
+    else if(c==="invalid_argument"||c==="revoked"||c==="not_granted"||c==="capability_disabled"||c==="capability_removed"){syncDead=true;setSync("Cloud sync is off for this view ("+c+"). Your data is still saved in this browser.")}
+    else setSync("Cloud sync hit a snag ("+((e&&(e.code||e.message))||"error")+"); will retry later. Your data is still saved in this browser.");
+  }
+  function dbop(fn){
+    var tries=0;
+    function go(){return fn().catch(function(e){
+      var c=e&&e.code;tries++;
+      if((c==="resource_exhausted"||c==="unavailable")&&tries<=4)return sleep(c==="resource_exhausted"?4000*tries:600+Math.random()*900).then(go);
+      throw e;
+    })}
+    return go();
+  }
+  function hdoc(k){return dbh.doc("data/users/"+SUID+"/h:"+k)}
+  function cdoc(k,i){return dbh.doc("data/users/"+SUID+"/c:"+k+":"+i)}
+  function getHead(k){return dbop(function(){return hdoc(k).get()}).then(function(s){return s.exists?s.data():null})}
+  function pullKey(k,C){
+    var parts=[],p=Promise.resolve(),i;
+    function one(i){p=p.then(function(){return dbop(function(){return cdoc(k,i).get()}).then(function(s){if(!s.exists)throw {code:"torn"};parts[i]=(s.data()||{}).s||""})})}
+    for(i=0;i<C.n;i++)one(i);
+    return p.then(function(){
+      var s=parts.join("");if(hsh(s)!==C.h)throw {code:"torn"};
+      return JSON.parse(s);
+    });
+  }
+  function pushKey(k,C){
+    var d=SYNCMAP[k],M=smk(k),s=JSON.stringify(d.get()),h=hsh(s),parts=[],i,p=Promise.resolve();
+    for(i=0;i<s.length;i+=CH)parts.push(s.slice(i,i+CH));
+    if(!parts.length)parts.push("");
+    var xs=parts.map(hsh),old=(C&&C.xs)||[],oldN=(C&&C.n)||0;
+    M.lt=0;
+    parts.forEach(function(part,i){
+      if(old[i]!==xs[i])p=p.then(function(){return sleep(120)}).then(function(){return dbop(function(){return cdoc(k,i).set({s:part})})});
+    });
+    p=p.then(function(){return sleep(120)}).then(function(){return dbop(function(){return hdoc(k).set({t:Date.now(),n:parts.length,h:h,xs:xs})})});
+    p=p.then(function(){M.h=h;M.ch=h;M.st=Date.now();savemeta()});
+    for(i=parts.length;i<oldN;i++)(function(i){p=p.then(function(){return sleep(120)}).then(function(){return dbop(function(){return cdoc(k,i).delete()})})})(i);
+    return p;
+  }
+  function mergePlays(a,b){
+    var out={},ks={},k;
+    for(k in a)ks[k]=1;for(k in b)ks[k]=1;
+    for(k in ks){
+      var x=a[k],y=b[k];
+      if(!x){out[k]=y;continue}if(!y){out[k]=x;continue}
+      var hx=x.hist||[],hy=y.hist||[],seenT={},h=[];
+      hx.concat(hy).forEach(function(t){if(!seenT[t]){seenT[t]=1;h.push(t)}});
+      h.sort(function(p,q){return p-q});
+      var und=Math.max((x.n||0)-hx.length,(y.n||0)-hy.length,0);
+      var o={n:und+h.length,last:Math.max(x.last||0,y.last||0)};
+      if(x.base||y.base)o.base=Math.max(x.base||0,y.base||0);
+      if(h.length)o.hist=h;
+      out[k]=o;
+    }
+    return out;
+  }
+  function assignAll(a,b){var o={},k;for(k in a)o[k]=a[k];for(k in b)o[k]=b[k];return o}
+  function mergeV(kind,L,V,M,C){
+    var localNew=(M.lt||M.st||0)>(C.t||0);
+    if(kind==="plays")return mergePlays(L,V);
+    if(kind==="map")return localNew?assignAll(V,L):assignAll(L,V);
+    if(!M.h){return Array.isArray(L)?(L.length>V.length?L:V):assignAll(L,V)}
+    return localNew?L:V;
+  }
+  function applyLocal(k,v){
+    var d=SYNCMAP[k];applying=true;
+    try{d.set(v);store(k,v)}finally{applying=false}
+    M_set(k,v);
+  }
+  function M_set(k,v){var M=smk(k);M.h=hsh(JSON.stringify(v));M.lt=0;savemeta()}
+  var changedByRemote=false;
+  function recon(k){
+    var d=SYNCMAP[k],M=smk(k);
+    return getHead(k).then(function(C){
+      var L=d.get(),lh=hsh(JSON.stringify(L)),def=(k===KEY_C&&DEFCOLL),empty=isEmpty(L)||def,dirty=(lh!==M.h)&&!def;
+      if(!C){return empty?null:pushKey(k,null)}
+      if(!def&&lh===C.h){M.h=lh;M.ch=C.h;M.lt=0;savemeta();return}
+      if(C.h===M.ch){return(dirty&&!empty)?pushKey(k,C):null}
+      var adopt=empty||(!dirty&&M.h);
+      return pullKey(k,C).then(function(V){
+        if(adopt){applyLocal(k,V);M.ch=C.h;savemeta();changedByRemote=true;return}
+        var R=mergeV(d.kind,L,V,M,C);
+        if(hsh(JSON.stringify(R))!==lh){applyLocal(k,R);changedByRemote=true}
+        return pushKey(k,C);
+      }).catch(function(e){if(e&&e.code==="torn")return;throw e});
+    });
+  }
+  function refreshAll(){
+    [renderHist,renderQueue,renderNow,renderTop,renderLog,renderMissing].forEach(function(f){try{f&&f()}catch(e){}});
+    try{updatePool()}catch(e){}
+  }
+  function reconKeys(keys){
+    changedByRemote=false;
+    var p=Promise.resolve();
+    keys.forEach(function(k){p=p.then(function(){if(syncDead)return;return recon(k)})});
+    return p.then(function(){
+      lastRecon=Date.now();
+      if(changedByRemote)refreshAll();
+      if(!syncDead){syncReady=true;var t=new Date();setSync("Saved to your Claude account and this browser · synced "+t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}))}
+    });
+  }
+  function reconAll(){return reconKeys(SYNC_ORDER)}
+  function reconDirty(){
+    var ks=SYNC_ORDER.filter(function(k){return smk(k).lt>0});
+    return ks.length?reconKeys(ks):null;
+  }
+  function startSync(){
+    Promise.all([window.claude.use("db"),window.claude.use("user")]).then(function(a){
+      var db=a[0],u=a[1];
+      if(!db||!u||typeof u.id!=="function")return;
+      return u.id().then(function(id){
+        if(!id)return;
+        dbh=db;SUID=id;setSync("Syncing with your Claude account…");
+        enq(reconAll);
+        document.addEventListener("visibilitychange",function(){
+          if(document.visibilityState==="visible"&&syncReady&&!syncDead&&Date.now()-lastRecon>30000)enq(function(){return reconAll()});
+        });
+      });
+    }).catch(syncFail);
+  }
+
   if(!(window.claude&&typeof window.claude.use==="function")){
     /* Running as a normal web page: look things up directly from the browser */
     bridge={direct:true};diag("online lookups from your browser");
@@ -2316,6 +2477,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     autoFetch(NP);autoFetch(PV);
   }
   if(window.claude&&typeof window.claude.use==="function"){
+    startSync();
     diag("checking for the app\u2019s browser\u2026");
     window.claude.use("mcp").then(function(m){
       if(!m){diag("not available in this view (the app\u2019s browser access wasn\u2019t granted to the page)");return}
