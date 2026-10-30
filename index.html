@@ -136,6 +136,7 @@ body.hasmini main{padding-bottom:84px}
 .wbox .src{margin:6px 0 0;line-height:1.4}
 .wbox .src:has(a.info){position:absolute;top:6px;right:10px;margin:0;line-height:1}
 .wbox .src:empty{display:none}
+.wbox .src:not(:has(a.info)){display:block;clear:both;font-size:11px;font-style:italic;line-height:1.4;margin:8px 0 0;padding-right:0}
 .wbox .about{padding-right:22px}
 .src a.info{text-decoration:none;font-size:14px;color:var(--muted)}
 .favstar{position:absolute;top:10px;right:12px;background:none;border:0;padding:4px 6px;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;border-radius:8px}
@@ -1362,7 +1363,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     $(V.p+"Vibe").textContent=vibe(r);
     var L=$(V.p+"Links");L.innerHTML="";
     var links=[];
-    links.push(["Listen on Apple Music","https://music.apple.com/us/search?term="+encodeURIComponent(r.artist+" "+r.title)]);
+    links.push(["Listen on Apple Music","https://music.apple.com/search?term="+encodeURIComponent(((r.artist||"")+" "+baseTitle(r.title)).trim())]);
     if(r.id||r.did)links.push(["Discogs","https://www.discogs.com/release/"+encodeURIComponent(r.id||r.did)]);
     var rq=encodeURIComponent((r.artist||"")+" "+baseTitle(r.title)+" album review");
     [["Pitchfork","pitchfork.com"],["Rolling Stone","rollingstone.com"],["Billboard","billboard.com"],["AllMusic","allmusic.com"]].forEach(function(z){
@@ -1931,6 +1932,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     busy["x"+k]=1;delete failed["x"+k];partial["x"+k]="";refreshAbout(k);
     var prompt="Here is the opening of the Wikipedia article for the album \""+r.title+"\" by "+r.artist+(r.year?" ("+r.year+")":"")+":\n\n"+w.extract.slice(0,1500)
       +"\n\nUsing your general knowledge, write 3 to 5 sentences of additional background that this text does NOT already say: how it was recorded or who played on it, the context in the artist's career, how it was received and remembered, and anything notable about its sound or artwork. Plain text, no markdown, no headings. Do not quote reviews or lyrics. Only state things you are confident are true; leave out anything uncertain. Do not add any disclaimer.";
+    prompt+="\n\nOutput only the background text itself. Do not add notes, caveats, or comments about the text, the excerpt, its sources, or any inconsistencies you noticed.";
     sampleFn(prompt,{onText:function(o){partial["x"+k]=o.text;refreshAbout(k)}}).then(function(res){
       var t=(res.text||"").trim();if(t){EXTRA[k]=t;store("spin_extra_v1",EXTRA)}else failed["x"+k]="error";
     }).catch(function(e){failed["x"+k]=(e&&e.code==="not_granted")?"declined":"error"}).then(function(){delete busy["x"+k];delete partial["x"+k];refreshAbout(k)});
@@ -1938,8 +1940,13 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   function renderMore(r,V){
     var M=$(V.p+"More"),x=MORE[key(r)]||{};M.innerHTML="";
     var kk=key(r),ex=EXTRA[kk]||partial["x"+kk];
-    if(ex){var pe=document.createElement("p");pe.textContent=ex;M.appendChild(pe);
-      var ne=document.createElement("p");ne.className="src";ne.textContent=EXTRA[kk]?"Source: Claude, from general knowledge \u00b7 may contain mistakes":"Adding background\u2026";M.appendChild(ne)}
+    if(ex){
+      var cav="",mm=ex.match(/(?:^|\n+|(?<=[.!?"\u201d]\s))((?:\(?Note(?: that|:)|Please note|Caveat|One caveat)[\s\S]*)$/i);
+      if(mm&&mm.index>0){cav=mm[1].trim();ex=ex.slice(0,mm.index).trim()}
+      var pe=document.createElement("p");pe.textContent=ex;M.appendChild(pe);
+      var ne=document.createElement("p");ne.className="src";ne.textContent=EXTRA[kk]?"Source: Claude, from general knowledge \u00b7 may contain mistakes":"Adding background\u2026";
+      if(cav){var ce=document.createElement("p");ce.className="src cav";ce.style.cssText="font-style:italic;font-size:11px;margin:6px 0 0";ce.textContent=cav;M.appendChild(ce)}
+      M.appendChild(ne)}
     else if(sampleFn&&WEB[kk]&&WEB[kk].extract&&!busy["x"+kk]){
       if(failed["x"+kk]){var pb=document.createElement("p");var bt=document.createElement("button");bt.className="btn ghost";bt.textContent="Add background from Claude";bt.onclick=function(){delete failed["x"+kk];askExtra(r)};pb.appendChild(bt);M.appendChild(pb)}
       else setTimeout(function(){askExtra(r)},0);
