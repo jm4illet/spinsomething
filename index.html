@@ -104,7 +104,10 @@ li.playing{background:rgba(65,105,225,.09);box-shadow:inset 3px 0 0 var(--accent
 .mini .mt2 span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.hasmini main{padding-bottom:84px}
 .cols{display:flex;flex-direction:column}.colL,.colR{display:contents}.stage{order:-1}
-.trtog{margin:0;padding:1px 9px;font-size:15px;line-height:22px}
+.trtog{margin:0;padding:0;font-size:11px;line-height:1;background:none;border:0;color:var(--ink);width:15px;text-align:left;cursor:pointer}
+.trhead h2.trh{font-family:system-ui,sans-serif;font-size:inherit;font-weight:600;cursor:pointer}
+.trhead .trtog.btn{order:-1;border:0;border-radius:0;padding:0;background:none;box-shadow:none;width:15px;height:auto;min-width:0;font-size:11px;color:var(--ink)}
+.trhead #npTrPen,.trhead #pvTrPen{margin-left:2px}
 .trc>:not(:first-child){display:none!important}
 @media (min-width:900px){
   .cols{display:grid}.colL,.colR{display:block}.stage{order:0}
@@ -137,6 +140,14 @@ body.hasmini main{padding-bottom:84px}
 .dcbox label{margin:0}
 .dcbox input{width:100%;box-sizing:border-box;padding:10px 12px;font-size:15px}
 .dcbox .btn{margin:0;padding:10px 20px;font-size:15px;width:100%}
+.prow{display:flex;align-items:center;gap:10px}
+.prow .ptop{flex:1 1 0;min-width:0;display:flex;gap:10px;align-items:center}
+.prow .rbtns{flex:0 0 auto;display:flex;gap:6px;margin:0}
+.prow .rbtns .btn{margin:0;white-space:nowrap;flex:0 0 auto}
+@media (max-width:520px){.prow{flex-wrap:wrap}.prow .ptop{flex-basis:100%}.prow .rbtns{width:100%}.prow .rbtns .btn{flex:1}}
+.qrow.tp .rbtns{flex:0 0 auto;gap:6px;margin:0}
+.qrow.tp .rbtns .btn{flex:0 0 auto;margin:0}
+@media (max-width:520px){.qrow.tp{flex-wrap:wrap}.qrow.tp .mi{flex:1 1 calc(100% - 80px)}.qrow.tp .rbtns{width:100%;padding-left:28px}.qrow.tp .rbtns .btn{flex:1}}
 </style>
 </head>
 <body>
@@ -176,9 +187,9 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <div class="tabs" id="pvTabs" role="tablist"><button class="tab" type="button" role="tab" data-t="tr">Tracks</button><button class="tab" type="button" role="tab" data-t="pr">Pairs well with</button><button class="tab" type="button" role="tab" data-t="nt">Notes</button></div>
   <div class="pane" data-pane="tr" id="pvPaneTr">
   <div id="pvTr" hidden>
-    <div style="display:flex;align-items:center;gap:8px;margin:16px 0 4px">
+    <div class="trhead" style="display:flex;align-items:center;gap:8px;margin:4px 0">
       <button class="btn ghost trtog" type="button" aria-expanded="true" title="Collapse tracklist" aria-label="Collapse tracklist">▾</button>
-      <h2 style="margin:0">Tracklist</h2>
+      <h2 class="trh" style="margin:0">Tracklist</h2>
       <button class="btn ghost" id="pvTrPen" type="button" title="Edit tracklist" aria-label="Edit tracklist" style="margin:0;padding:1px 9px;font-size:15px;line-height:22px">✎</button>
     </div>
     <div id="pvTrForm" hidden style="margin:6px 0">
@@ -195,7 +206,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <button class="btn ghost" id="pvTrBtn" type="button" hidden style="margin-top:8px">Get standout tracks</button>
   </div>
   <div class="pane" data-pane="pr" id="pvPanePr">
-  <details id="pvPairs" hidden style="margin-top:16px">
+  <details id="pvPairs" hidden style="margin-top:4px">
     <summary id="pvPairSum">Pairs well with</summary>
     <div class="meta" id="pvPairNote" style="margin-top:6px"></div>
     <button class="btn ghost" id="pvPairQ" type="button" style="margin-top:6px" hidden>Queue top 3</button>
@@ -234,9 +245,9 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <div class="tabs" id="npTabs" role="tablist"><button class="tab" type="button" role="tab" data-t="tr">Tracks</button><button class="tab" type="button" role="tab" data-t="pr">Pairs well with</button><button class="tab" type="button" role="tab" data-t="nt">Notes</button></div>
   <div class="pane" data-pane="tr" id="npPaneTr">
   <div id="npTr" hidden>
-    <div style="display:flex;align-items:center;gap:8px;margin:16px 0 4px">
+    <div class="trhead" style="display:flex;align-items:center;gap:8px;margin:4px 0">
       <button class="btn ghost trtog" type="button" aria-expanded="true" title="Collapse tracklist" aria-label="Collapse tracklist">▾</button>
-      <h2 style="margin:0">Tracklist</h2>
+      <h2 class="trh" style="margin:0">Tracklist</h2>
       <button class="btn ghost" id="npTrPen" type="button" title="Edit tracklist" aria-label="Edit tracklist" style="margin:0;padding:1px 9px;font-size:15px;line-height:22px">✎</button>
     </div>
     <div id="npTrForm" hidden style="margin:6px 0">
@@ -253,7 +264,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <button class="btn ghost" id="npTrBtn" type="button" hidden style="margin-top:8px">Get standout tracks</button>
   </div>
   <div class="pane" data-pane="pr" id="npPanePr">
-  <details id="npPairs" hidden style="margin-top:16px">
+  <details id="npPairs" hidden style="margin-top:4px">
     <summary id="npPairSum">Pairs well with</summary>
     <div class="meta" id="npPairNote" style="margin-top:6px"></div>
     <button class="btn ghost" id="npPairQ" type="button" style="margin-top:6px" hidden>Queue top 3</button>
@@ -1373,20 +1384,24 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     var ul=$("topList");ul.innerHTML="";
     $("topHead").textContent="Most played"+(rows.length?" (top "+rows.length+")":"");
     rows.forEach(function(x,i){
-      var li=document.createElement("li");li.className="qrow";
+      var li=document.createElement("li");li.className="qrow tp";
       var num=document.createElement("div");num.className="qn";num.textContent=String(i+1);
       var box=document.createElement("div");box.className="mi";
       var t=document.createElement("div");t.className="mt";t.textContent=(FAVS[key(x.r)]?"\u2605 ":"")+x.r.title;
+      var pl=document.createElement("span");pl.className="spinpill";pl.style.cssText="margin:0 0 0 8px;color:#fff;font-size:12px";pl.textContent=x.n+"\u00d7";pl.title="Spun "+x.n+(x.n===1?" time":" times");t.appendChild(pl);
       var a=document.createElement("div");a.className="ma";a.textContent=[x.r.artist,x.r.year].filter(Boolean).join(" \u00b7 ");
       var c=document.createElement("div");c.className="mv";
       var d="";try{d=new Date(x.last).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}catch(e){}
-      c.textContent=x.n+(x.n===1?" spin":" spins")+(d?" \u00b7 last "+d:"");
+      c.textContent=d?"Last spun on "+d:"";
       box.appendChild(t);box.appendChild(a);box.appendChild(c);
       var b=document.createElement("button");b.type="button";b.className="btn ghost qbtn";
       b.textContent=key(x.r)===nowKey?"\u25b6 Playing":"\u25b6 Play";b.setAttribute("aria-label","Play "+x.r.title);
       b.onclick=function(){setNow(x.r)};
+      var pvb=document.createElement("button");pvb.type="button";pvb.className="btn ghost qbtn";pvb.textContent="Preview";
+      pvb.setAttribute("aria-label","Preview "+x.r.title);pvb.onclick=function(){openPreview(x.r)};
+      var rb=document.createElement("div");rb.className="rbtns hrow";rb.appendChild(pvb);rb.appendChild(b);rb.appendChild(queueBtn(x.r));
       var cv=cover(x.r);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(x.r);
-      li.appendChild(num);li.appendChild(cv);li.appendChild(box);li.appendChild(b);ul.appendChild(li);
+      li.appendChild(num);li.appendChild(cv);li.appendChild(box);li.appendChild(rb);ul.appendChild(li);
     });
   }
   /* Learn more: the same card for a record that is not playing yet, so you can read up before choosing it */
@@ -1444,7 +1459,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     if(!ps.length){note.textContent="No close matches in your collection by genre and year.";return}
     note.textContent="Based on shared genres and nearby release years"+(r.year?" (this one: "+r.year+")":"")+".";
     ps.forEach(function(p){
-      var li=document.createElement("li");li.style.cssText="display:flex;flex-direction:column;gap:8px;align-items:stretch";
+      var li=document.createElement("li");li.className="prow";
       var d=document.createElement("div");d.className="mi";
       var t=document.createElement("div");t.className="mt";t.textContent=p.r.title;
       var pn=PLAYS[key(p.r)]?PLAYS[key(p.r)].n:0;
@@ -1458,7 +1473,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       var pvb=document.createElement("button");pvb.type="button";pvb.className="btn ghost qbtn";pvb.textContent="Preview";
       pvb.setAttribute("aria-label","Preview "+p.r.title);pvb.onclick=function(){openPreview(p.r)};
       var rb=document.createElement("div");rb.className="rbtns hrow";rb.appendChild(pvb);rb.appendChild(b);rb.appendChild(queueBtn(p.r));
-      var top=document.createElement("div");top.style.cssText="display:flex;gap:10px;align-items:center;min-width:0";
+      var top=document.createElement("div");top.className="ptop";
       var cv=cover(p.r);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCoverLow(p.r);
       top.appendChild(cv);top.appendChild(d);
       li.appendChild(top);li.appendChild(rb);ul.appendChild(li);
@@ -2199,10 +2214,11 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     var closed=!!read("spin_tr_closed");
     function apply(){
       ["npTr","pvTr"].forEach(function(id){var box=$(id),b=box.querySelector(".trtog");
-        box.classList.toggle("trc",closed);b.textContent=closed?"\u25b8":"\u25be";
+        box.classList.toggle("trc",closed);b.textContent=closed?"\u25b6":"\u25bc";
         b.setAttribute("aria-expanded",closed?"false":"true");b.title=b.ariaLabel=closed?"Expand tracklist":"Collapse tracklist"});
     }
-    ["npTr","pvTr"].forEach(function(id){$(id).querySelector(".trtog").onclick=function(){closed=!closed;store("spin_tr_closed",closed?1:0);apply()}});
+    ["npTr","pvTr"].forEach(function(id){$(id).querySelector(".trtog").onclick=function(){closed=!closed;store("spin_tr_closed",closed?1:0);apply()};
+      $(id).querySelector(".trh").onclick=$(id).querySelector(".trtog").onclick});
     apply();
   })();
   if(read("spin_filt_closed"))$("filtDet").open=false;
