@@ -17,10 +17,13 @@ h1{font-size:28px;margin:0 0 4px;letter-spacing:-.5px}
 .sub{color:var(--muted);font-family:system-ui,sans-serif;font-size:14px;margin:0 0 20px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
 .stage{text-align:center;padding:28px 18px}
-.disc{width:140px;height:140px;border-radius:50%;margin:0 auto 18px;background:
-radial-gradient(circle at center,var(--accent) 0 18%,#111 18% 21%,#1c1c1c 21% 100%);
-box-shadow:inset 0 0 0 6px #0a0a0a,inset 0 0 0 9px #262626,0 6px 18px rgba(0,0,0,.25);position:relative}
-.disc::after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 30deg,transparent,rgba(255,255,255,.12),transparent 30%,transparent 50%,rgba(255,255,255,.1),transparent 80%)}
+.disc{width:140px;height:140px;margin:0 auto 18px;position:relative}
+.disc .vwrap{width:100%;height:100%}
+.disc .vlabel{width:49px;height:49px;margin:-24.5px 0 0 -24.5px;background:linear-gradient(135deg,var(--accent),#2a3f8f)}
+.disc .vlabel.hasart{width:72px;height:72px;margin:-36px 0 0 -36px}
+.disc.spin{animation:none}
+.disc .vinyl{animation:none}
+.disc.spin .vinyl{animation:spin .5s linear infinite}
 .spin{animation:spin .5s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .artist{font-size:15px;color:var(--muted);font-family:system-ui,sans-serif;text-transform:uppercase;letter-spacing:1.5px}
@@ -91,7 +94,6 @@ h1+.sub:not([hidden]){margin-top:-12px}
   box-shadow:inset 0 0 0 3px #080808,0 3px 10px rgba(0,0,0,.3);animation:spin 1.8s linear infinite}
 .vlabel{position:absolute;left:50%;top:50%;width:42px;height:42px;margin:-21px 0 0 -21px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
 .vlabel.hasart{width:58px;height:58px;margin:-29px 0 0 -29px}
-.vlabel::before{content:"";position:absolute;left:50%;top:4px;width:3px;height:9px;margin-left:-1.5px;border-radius:2px;background:rgba(255,255,255,.85)}
 .vlabel::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#0a0a0a}
 .vsheen{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:conic-gradient(from 20deg,transparent 0,rgba(255,255,255,.16) 12%,transparent 28%,transparent 50%,rgba(255,255,255,.12) 62%,transparent 78%)}
 @media (prefers-reduced-motion:reduce){.vinyl{animation:none}}
@@ -106,8 +108,9 @@ body.hasmini main{padding-bottom:84px}
 .cols{display:flex;flex-direction:column}.colL,.colR{display:contents}.stage{order:-1}
 .trtog{margin:0;padding:0;font-size:11px;line-height:1;background:none;border:0;color:var(--ink);width:15px;text-align:left;cursor:pointer}
 .trhead h2.trh{font-family:system-ui,sans-serif;font-size:inherit;font-weight:600;cursor:pointer}
-.trhead .trtog.btn{order:-1;border:0;border-radius:0;padding:0;background:none;box-shadow:none;width:15px;height:auto;min-width:0;font-size:11px;color:var(--ink)}
-.trhead #npTrPen,.trhead #pvTrPen{margin-left:2px}
+.trhead .trtog.btn{order:-1;border:0;border-radius:0;padding:0;background:none;box-shadow:none;width:auto;height:auto;min-width:0;font-size:8.8px;color:var(--ink)}
+.trhead #npTrPen,.trhead #pvTrPen{margin:0 0 0 2px!important;padding:0 8px!important;font-size:12px!important;line-height:15px!important;height:17px}
+.trhead{margin:4px 0 6px!important;min-height:17px;gap:5.8px!important}
 .trc>:not(:first-child){display:none!important}
 @media (min-width:900px){
   .cols{display:grid}.colL,.colR{display:block}.stage{order:0}
@@ -148,6 +151,9 @@ body.hasmini main{padding-bottom:84px}
 .qrow.tp .rbtns{flex:0 0 auto;gap:6px;margin:0}
 .qrow.tp .rbtns .btn{flex:0 0 auto;margin:0}
 @media (max-width:520px){.qrow.tp{flex-wrap:wrap}.qrow.tp .mi{flex:1 1 calc(100% - 80px)}.qrow.tp .rbtns{width:100%;padding-left:28px}.qrow.tp .rbtns .btn{flex:1}}
+.trhead .trtog{display:none!important}
+.trhead h2.trh{display:list-item;list-style:disclosure-open inside;font-size:inherit;font-weight:600;font-family:system-ui,sans-serif;margin:0}
+#npTr.trc .trhead h2.trh,#pvTr.trc .trhead h2.trh{list-style-type:disclosure-closed}
 </style>
 </head>
 <body>
@@ -291,7 +297,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 </div>
 <div class="card stage" id="stage">
   <button class="stgl" id="stgl" type="button" aria-controls="stage" aria-expanded="true" title="Collapse">▾</button>
-  <div class="disc" id="disc"></div>
+  <div class="disc" id="disc"><div class="vwrap" aria-hidden="true"><div class="vinyl"><div class="vlabel"></div></div><div class="vsheen"></div></div></div>
   <div id="result">
     <div class="artist">Ready</div>
     <div class="title">What’s on the turntable?</div>
@@ -2052,7 +2058,17 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   }
   $("matchDet").addEventListener("toggle",function(){updatePool()});
 
+  /* The record on the Ready card shows the cover of whichever record is being considered, then the one picked */
+  function stageLabel(r){
+    var l=$("disc")&&$("disc").querySelector(".vlabel");if(!l||!r)return;
+    var k=key(r);l.setAttribute("data-k",k);
+    if(ART[k]){paint(l,ART[k]);return}
+    l.classList.remove("hasart");l.textContent="";
+    var h=hue((r.artist||"")+"|"+r.title);
+    l.style.background=gradientFor(r)||"linear-gradient(135deg,hsl("+h+",60%,52%),hsl("+((h+50)%360)+",65%,32%))";
+  }
   function show(r){
+    stageLabel(r);
     var yr=r.year?(r.press&&r.press!==r.year?r.year+" (pressed "+r.press+")":""+r.year):"";
     var meta=[r.genre,r.label,r.format,yr].filter(Boolean).join(" · ");
     $("result").innerHTML="";
@@ -2116,7 +2132,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       if(++n>=9){
         clearInterval(iv);
         disc.classList.remove("spin");
-        current=pickOne();show(current);addPlayBtn(current);
+        current=pickOne();show(current);addPlayBtn(current);requestCover(current);
         history.unshift(current);history=history.slice(0,30);
         store(KEY_H,history);renderHist();
         btn.disabled=false;btn.textContent="Pick another";
