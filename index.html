@@ -112,6 +112,26 @@ body.hasmini main{padding-bottom:84px}
   main{max-width:1120px}
   .cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:0 20px;align-items:start}
 }
+.more{margin:8px 0;font-size:13px;line-height:1.5}.more p{margin:4px 0}.more .rv a{margin-right:10px}.more .nt{color:var(--muted)}
+.nplinks a{border:1px solid var(--line);border-radius:999px;padding:3px 11px;text-decoration:none;white-space:nowrap}
+.nplinks a.rvl{color:var(--muted)}
+.nplinks{gap:6px 8px}
+.tabs{display:flex;gap:4px;margin:16px 0 8px;border-bottom:1px solid var(--line)}
+.tabs .tab{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:6px 12px;color:var(--muted);cursor:pointer;font-size:14px;margin-bottom:-1px}
+.tabs .tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.pane.off{display:none}
+.src{font-size:11px;color:var(--muted);margin:2px 0 0;font-family:system-ui,sans-serif}
+.more{font-family:system-ui,sans-serif;font-size:14px;line-height:1.55}.more .rv{display:none}
+#npBox.wbox,#pvBox.wbox{background:rgba(65,105,225,.10);border-radius:10px;padding:2px 14px 8px;margin:12px 0 6px;position:relative}
+.wbox .about{margin:10px 0 4px}
+.wbox .nplinks{margin:8px 0 2px}
+.wbox .nplinks a{background:var(--card)}
+.wbox .src{position:absolute;top:6px;right:10px;margin:0;line-height:1}
+.wbox .about{padding-right:22px}
+.src a.info{text-decoration:none;font-size:14px;color:var(--muted)}
+.favstar{position:absolute;top:10px;right:12px;background:none;border:0;padding:4px 6px;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;border-radius:8px}
+.favstar[aria-pressed=true]{color:#e0a800}
+.favstar:hover{background:rgba(128,128,128,.12)}
 </style>
 </head>
 <body>
@@ -127,7 +147,8 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 
 <div class="cols">
 <div class="colL">
-<div class="card" id="pvCard" hidden>
+<div class="card" id="pvCard" hidden style="position:relative">
+  <button class="favstar" id="pvFav" type="button" aria-pressed="false" aria-label="Favorite" title="Favorite">☆</button>
   <div class="np">
     <div id="pvArt"></div>
     <div class="npinfo">
@@ -142,13 +163,15 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <div class="npbtns">
     <button class="btn" id="pvPlay" type="button" style="margin:0;padding:8px 18px;font-size:14px">▶ Play this</button>
     <button class="btn ghost" id="pvQueue" type="button">＋ Queue</button>
-    <button class="btn ghost" id="pvFav" type="button" aria-pressed="false">☆ Favorite</button>
     <button class="btn ghost" id="pvClose" type="button">Close</button>
   </div>
-  <div class="nplinks" id="pvLinks"></div>
-  <p class="about" id="pvText" hidden></p>
+  <div id="pvBox" class="wbox"><p class="about" id="pvText" hidden></p>
   <div class="meta" id="pvNote" hidden></div>
+  <div class="nplinks" id="pvLinks"></div></div>
+  <div class="more" id="pvMore" hidden></div>
   <button class="btn ghost" id="pvAsk" hidden style="margin-top:8px">Get album summary</button>
+  <div class="tabs" id="pvTabs" role="tablist"><button class="tab" type="button" role="tab" data-t="tr">Tracks</button><button class="tab" type="button" role="tab" data-t="pr">Pairs well with</button><button class="tab" type="button" role="tab" data-t="nt">Notes</button></div>
+  <div class="pane" data-pane="tr" id="pvPaneTr">
   <div id="pvTr" hidden>
     <div style="display:flex;align-items:center;gap:8px;margin:16px 0 4px">
       <button class="btn ghost trtog" type="button" aria-expanded="true" title="Collapse tracklist" aria-label="Collapse tracklist">▾</button>
@@ -167,16 +190,22 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <button class="btn ghost" id="pvTrEdit" type="button" style="margin-top:8px" hidden>Done reordering</button>
   </div>
   <button class="btn ghost" id="pvTrBtn" type="button" hidden style="margin-top:8px">Get standout tracks</button>
-  <div style="margin-top:16px"><label for="pvMyNote">My notes</label><textarea id="pvMyNote" rows="2" maxlength="600" style="min-height:56px" placeholder="e.g. great on the good speakers, skip side B"></textarea></div>
+  </div>
+  <div class="pane" data-pane="pr" id="pvPanePr">
   <details id="pvPairs" hidden style="margin-top:16px">
     <summary id="pvPairSum">Pairs well with</summary>
     <div class="meta" id="pvPairNote" style="margin-top:6px"></div>
     <button class="btn ghost" id="pvPairQ" type="button" style="margin-top:6px" hidden>Queue top 3</button>
     <ul id="pvPairList" style="margin-top:6px"></ul>
   </details>
+  </div>
+  <div class="pane" data-pane="nt" id="pvPaneNt">
+  <div style="margin-top:4px"><label for="pvMyNote">My notes</label><textarea id="pvMyNote" rows="2" maxlength="600" style="min-height:56px" placeholder="e.g. great on the good speakers, skip side B"></textarea></div>
+  </div>
 </div>
 
-<div class="card" id="npCard" hidden>
+<div class="card" id="npCard" hidden style="position:relative">
+  <button class="favstar" id="npFav" type="button" aria-pressed="false" aria-label="Favorite" title="Favorite">☆</button>
   <div class="np">
     <div id="npArt"></div>
     <div class="npinfo">
@@ -189,16 +218,18 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     </div>
   </div>
   <div class="npbtns">
-    <button class="btn ghost" id="npFav" type="button" aria-pressed="false">☆ Favorite</button>
     <button class="btn ghost" id="npUndo" type="button" hidden>Undo last spin</button>
     <button class="btn ghost" id="npNext" type="button" hidden>Play next ▶</button>
     <button class="btn ghost" id="npStop">Stop</button>
   </div>
-  <div class="nplinks" id="npLinks"></div>
-  <p class="about" id="npText" hidden></p>
+  <div id="npBox" class="wbox"><p class="about" id="npText" hidden></p>
   <div class="meta" id="npNote" hidden></div>
+  <div class="nplinks" id="npLinks"></div></div>
+  <div class="more" id="npMore" hidden></div>
   <button class="btn ghost" id="npAsk" hidden style="margin-top:8px">Get album summary</button>
   <p class="meta" id="npMsg"></p>
+  <div class="tabs" id="npTabs" role="tablist"><button class="tab" type="button" role="tab" data-t="tr">Tracks</button><button class="tab" type="button" role="tab" data-t="pr">Pairs well with</button><button class="tab" type="button" role="tab" data-t="nt">Notes</button></div>
+  <div class="pane" data-pane="tr" id="npPaneTr">
   <div id="npTr" hidden>
     <div style="display:flex;align-items:center;gap:8px;margin:16px 0 4px">
       <button class="btn ghost trtog" type="button" aria-expanded="true" title="Collapse tracklist" aria-label="Collapse tracklist">▾</button>
@@ -217,13 +248,18 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <button class="btn ghost" id="npTrEdit" type="button" style="margin-top:8px" hidden>Done reordering</button>
   </div>
   <button class="btn ghost" id="npTrBtn" type="button" hidden style="margin-top:8px">Get standout tracks</button>
-  <div style="margin-top:16px"><label for="npMyNote">My notes</label><textarea id="npMyNote" rows="2" maxlength="600" style="min-height:56px" placeholder="e.g. great on the good speakers, skip side B"></textarea></div>
+  </div>
+  <div class="pane" data-pane="pr" id="npPanePr">
   <details id="npPairs" hidden style="margin-top:16px">
     <summary id="npPairSum">Pairs well with</summary>
     <div class="meta" id="npPairNote" style="margin-top:6px"></div>
     <button class="btn ghost" id="npPairQ" type="button" style="margin-top:6px" hidden>Queue top 3</button>
     <ul id="npPairList" style="margin-top:6px"></ul>
   </details>
+  </div>
+  <div class="pane" data-pane="nt" id="npPaneNt">
+  <div style="margin-top:4px"><label for="npMyNote">My notes</label><textarea id="npMyNote" rows="2" maxlength="600" style="min-height:56px" placeholder="e.g. great on the good speakers, skip side B"></textarea></div>
+  </div>
 </div>
 
 <div class="card" id="topCard" hidden>
@@ -530,7 +566,7 @@ Kaytranada,99.9%,"2xLP, Album",XL Recordings,2016,2016,,XLLP 765,Collection`;
       if(g===undefined)g=-1;if(y===undefined)y=py===undefined?-1:py;if(py===undefined)py=-1;
       return rows.slice(1).filter(function(r){return r[t]}).map(function(r){
         return {artist:clean(r[a]),title:r[t].trim(),label:l>-1?clean(r[l]):"",format:fm>-1?r[fm].trim():"",
-          year:(y>-1&&parseInt(r[y],10))||(py>-1&&parseInt(r[py],10))||0,press:py>-1?parseInt(r[py],10)||0:0,folder:fo>-1?r[fo].trim():"",id:id>-1?r[id]:"",genre:g>-1?(r[g]||"").trim():""};
+          year:(y>-1&&parseInt(r[y],10))||(py>-1&&parseInt(r[py],10))||0,press:py>-1?parseInt(r[py],10)||0:0,folder:fo>-1?r[fo].trim():"",id:id>-1?r[id]:"",did:id>-1?r[id]:"",genre:g>-1?(r[g]||"").trim():""};
       });
     }
     return text.split(/\r?\n/).map(function(s){return s.trim()}).filter(Boolean).map(function(s){
@@ -1105,7 +1141,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     }
     var ub=$(V.p+"Undo");if(ub)ub.hidden=!n;
     var f=!!FAVS[vk],b=$(V.p+"Fav");
-    b.textContent=f?"\u2605 Favorited":"\u2606 Favorite";b.setAttribute("aria-pressed",f?"true":"false");
+    b.textContent=f?"\u2605":"\u2606";b.title=b.ariaLabel=f?"Favorited (tap to remove)":"Favorite";b.setAttribute("aria-pressed",f?"true":"false");
   }
   $("npUndo").onclick=undoSpin;
   function toggleFav(V){
@@ -1284,19 +1320,20 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     $(V.p+"Meta").textContent=[r.year||"",fmtMain(r.format),r.label].filter(Boolean).join(" \u00b7 ");
     $(V.p+"Vibe").textContent=vibe(r);
     var L=$(V.p+"Links");L.innerHTML="";
-    var links=[
-      ["Wikipedia","https://en.wikipedia.org/w/index.php?search="+encodeURIComponent(r.artist+" "+r.title+" album")]
-    ];
+    var links=[];
     links.push(["Listen on Apple Music","https://music.apple.com/us/search?term="+encodeURIComponent(r.artist+" "+r.title)]);
-    if(r.id)links.push(["Discogs","https://www.discogs.com/release/"+encodeURIComponent(r.id)]);
+    if(r.id||r.did)links.push(["Discogs","https://www.discogs.com/release/"+encodeURIComponent(r.id||r.did)]);
+    var rq=encodeURIComponent((r.artist||"")+" "+baseTitle(r.title)+" album review");
+    [["Pitchfork","pitchfork.com"],["Rolling Stone","rollingstone.com"],["Billboard","billboard.com"],["AllMusic","allmusic.com"]].forEach(function(z){
+      links.push([z[0],"https://duckduckgo.com/?q="+rq+"+site%3A"+z[1],"rvl"])});
     links.forEach(function(x){
-      var a=document.createElement("a");a.href=x[1];a.target="_blank";a.rel="noopener";a.textContent=x[0];L.appendChild(a);
+      var a=document.createElement("a");a.href=x[1];a.target="_blank";a.rel="noopener";a.textContent=x[0];if(x[2])a.className=x[2];L.appendChild(a);
     });
     seedKnown(r);
     renderAbout(r,V);
     renderSpins(V);
     renderTracks(r,V);
-    renderPairs(r,V);
+    renderPairs(r,V);syncTabs(V);
     var nt=$(V.p+"MyNote");if(document.activeElement!==nt)nt.value=NOTES[key(r)]||"";
     autoFetch(V);
   }
@@ -1734,31 +1771,58 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       return null;
     });
   }
+  var MORE={},MORE_BUSY={};
+  function loadMore(r){
+    var k=key(r);
+    function refresh(){if(nowKey===k)renderNow();if(pvKey===k)renderPreview()}
+    /* Extra detail from other open sources: MusicBrainz tags and ratings, and the Discogs release page when we know its id */
+    if(!(MORE[k]&&MORE[k].xdone)&&!MORE_BUSY[k]){
+      MORE_BUSY[k]=1;var x=MORE[k]||(MORE[k]={});
+      var p1=mbGroup(r).then(function(g){
+        if(!g)return;
+        return mbGet("https://musicbrainz.org/ws/2/release-group/"+g.id+"?inc=genres+ratings&fmt=json").then(function(j){
+          x.mbGenres=(j.genres||[]).sort(function(a,b){return (b.count||0)-(a.count||0)}).slice(0,6).map(function(z){return z.name});
+          if(j.rating&&j.rating.value)x.mbRating=j.rating.value;x.mbVotes=(j.rating&&j.rating["votes-count"])||0;
+          x.mbUrl="https://musicbrainz.org/release-group/"+g.id;
+        });
+      }).catch(function(){});
+      var did=r.id||r.did;
+      var p2=did?getJSON("https://api.discogs.com/releases/"+encodeURIComponent(did)).then(function(j){
+        if(!j||j.message)return;
+        x.dcGenres=(j.genres||[]).concat(j.styles||[]);x.dcCountry=j.country||"";x.dcYear=j.year||0;
+        var c=j.community&&j.community.rating;if(c&&c.average){x.dcRating=c.average;x.dcVotes=c.count||0}
+        x.dcNotes=(j.notes||"").trim().slice(0,500);x.dcUrl=j.uri||("https://www.discogs.com/release/"+did);
+      }).catch(function(){}):Promise.resolve();
+      Promise.all([p1,p2]).then(function(){x.xdone=1;delete MORE_BUSY[k];refresh()});
+    }
+  }
   function loadWeb(r){
     var k=key(r),w=WEB[k];
+    loadMore(r);
     if(webBusy[k]||(w&&w.done))return;
     var t=baseTitle(r.title),a=r.artist||"";
     requestCover(r);
     webBusy[k]=1;w=WEB[k]={};
+    function refresh(){if(nowKey===k)renderNow();if(pvKey===k)renderPreview()}
     fetchWiki(t,a).then(function(x){if(x){w.extract=x.extract;w.url=x.url;w.wtitle=x.title}}).catch(function(){w.werr=1}).then(function(){
       delete webBusy[k];
       if(!w.werr){w.done=1;store(KEY_W,WEB)}
-      if(nowKey===k)renderNow();
-      if(pvKey===k)renderPreview();
+      refresh();
     });
+
   }
   function renderAbout(r,V){
     var k=key(r),w=WEB[k]||{},isBusy=!!busy["a"+k],f=failed["a"+k];
     var txt=w.extract||ABOUT[k]||(isBusy?(partial[k]||""):""),T=$(V.p+"Text"),N=$(V.p+"Note"),B=$(V.p+"Ask");
     T.hidden=!(txt||isBusy);T.textContent=txt||(isBusy?"Thinking\u2026":"");
-    N.innerHTML="";
+    N.innerHTML="";N.title="";N.className="meta src";
     function add(s){N.appendChild(document.createTextNode(s))}
     if(w.extract){
-      add("From ");
-      var al=document.createElement("a");al.href=w.url;al.target="_blank";al.rel="noopener";al.textContent="Wikipedia: "+w.wtitle;N.appendChild(al);
-      add(" (text under CC BY-SA 4.0).");
+      var al=document.createElement("a");al.className="info";al.href=w.url;al.target="_blank";al.rel="noopener";al.textContent="\u24d8";
+      al.title="Source: Wikipedia: "+w.wtitle+" \u00b7 CC BY-SA 4.0";al.setAttribute("aria-label",al.title);N.appendChild(al);
     }else if(ABOUT[k]&&!isBusy){
-      add(known(r)&&known(r).aboutNote?known(r).aboutNote:"Summary written by Claude from general knowledge, not pulled live from Wikipedia. Check the Wikipedia link for details.");
+      if(known(r)&&known(r).aboutNote)add(known(r).aboutNote);
+      else{add("Source: Claude, from general knowledge \u24d8");N.title="Written by Claude from general knowledge, not pulled live from Wikipedia, so it can contain mistakes. Check the Wikipedia link for details."}
     }else if(!isBusy&&f==="declined"){
       add("Claude access was declined for this page.");
     }else if(!isBusy&&f){
@@ -1769,8 +1833,41 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       add("No matching Wikipedia article found. Use the links above to look further.");
     }
     N.hidden=!N.childNodes.length;
+    renderMore(r,V);
     B.hidden=!(sampleFn&&!w.extract&&!ABOUT[k]&&!isBusy&&(f==="error"||f==="declined"));
     B.disabled=false;B.textContent="Try again";
+  }
+  /* Background from Claude's general knowledge that adds to (and doesn't repeat) the Wikipedia summary */
+  var EXTRA=read("spin_extra_v1")||{};
+  function askExtra(r){
+    var k=key(r),w=WEB[k]||{};
+    if(!sampleFn||busy["x"+k]||EXTRA[k]||!w.extract)return;
+    busy["x"+k]=1;delete failed["x"+k];partial["x"+k]="";refreshAbout(k);
+    var prompt="Here is the opening of the Wikipedia article for the album \""+r.title+"\" by "+r.artist+(r.year?" ("+r.year+")":"")+":\n\n"+w.extract.slice(0,1500)
+      +"\n\nUsing your general knowledge, write 3 to 5 sentences of additional background that this text does NOT already say: how it was recorded or who played on it, the context in the artist's career, how it was received and remembered, and anything notable about its sound or artwork. Plain text, no markdown, no headings. Do not quote reviews or lyrics. Only state things you are confident are true; leave out anything uncertain. Do not add any disclaimer.";
+    sampleFn(prompt,{onText:function(o){partial["x"+k]=o.text;refreshAbout(k)}}).then(function(res){
+      var t=(res.text||"").trim();if(t){EXTRA[k]=t;store("spin_extra_v1",EXTRA)}else failed["x"+k]="error";
+    }).catch(function(e){failed["x"+k]=(e&&e.code==="not_granted")?"declined":"error"}).then(function(){delete busy["x"+k];delete partial["x"+k];refreshAbout(k)});
+  }
+  function renderMore(r,V){
+    var M=$(V.p+"More"),x=MORE[key(r)]||{};M.innerHTML="";
+    var kk=key(r),ex=EXTRA[kk]||partial["x"+kk];
+    if(ex){var pe=document.createElement("p");pe.textContent=ex;M.appendChild(pe);
+      var ne=document.createElement("p");ne.className="src";ne.textContent=EXTRA[kk]?"Source: Claude, from general knowledge \u00b7 may contain mistakes":"Adding background\u2026";M.appendChild(ne)}
+    else if(sampleFn&&WEB[kk]&&WEB[kk].extract&&!busy["x"+kk]){
+      if(failed["x"+kk]){var pb=document.createElement("p");var bt=document.createElement("button");bt.className="btn ghost";bt.textContent="Add background from Claude";bt.onclick=function(){delete failed["x"+kk];askExtra(r)};pb.appendChild(bt);M.appendChild(pb)}
+      else setTimeout(function(){askExtra(r)},0);
+    }
+
+    function line(label,text,url){
+      var p=document.createElement("p"),b=document.createElement("b");b.textContent=label+": ";p.appendChild(b);
+      if(url){var a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener";a.textContent=text;p.appendChild(a)}else p.appendChild(document.createTextNode(text));
+      M.appendChild(p);return p;
+    }
+    if(x.dcGenres&&x.dcGenres.length)line("Discogs",[x.dcGenres.join(", "),x.dcCountry,x.dcYear||""].filter(Boolean).join(" · ")+(x.dcRating?" · "+x.dcRating.toFixed(2)+"/5 ("+x.dcVotes+" ratings)":""),x.dcUrl);
+    if(x.dcNotes){var n=line("Release notes",x.dcNotes);n.className="nt"}
+    if(x.mbGenres&&x.mbGenres.length||x.mbRating)line("MusicBrainz",[x.mbGenres&&x.mbGenres.join(", "),x.mbRating?x.mbRating.toFixed(1)+"/5 ("+x.mbVotes+" votes)":""].filter(Boolean).join(" · "),x.mbUrl);
+    M.hidden=!M.childNodes.length;
   }
   function askAbout(V){
     var r=V.rec();if(!r||!sampleFn)return Promise.resolve();
@@ -1989,7 +2086,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
         if(!j||j.message&&!j.releases)throw new Error(j&&j.message||"not found");
         (j.releases||[]).forEach(function(x){var b=x.basic_information||{};
           all.push({artist:clean(((b.artists||[])[0]||{}).name||""),title:(b.title||"").trim(),label:clean(((b.labels||[])[0]||{}).name||""),format:dcFmt(b.formats),
-            year:b.year||0,press:b.year||0,folder:"Collection",id:"",genre:(b.genres||[]).concat(b.styles||[]).join(", ")})});
+            year:b.year||0,press:b.year||0,folder:"Collection",id:"",did:String(x.id||b.id||""),genre:(b.genres||[]).concat(b.styles||[]).join(", ")})});
         var pages=(j.pagination&&j.pagination.pages)||1;
         if(n<pages)return bWait(2500).then(function(){return page(n+1)});
       });
@@ -2023,6 +2120,23 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       store(KEY_NOTE,NOTES);
       var o=V===NP?PV:NP;if(o.k()===k)$(o.p+"MyNote").value=v;
     };
+  });
+  var TAB={np:"tr",pv:"tr"};
+  function syncTabs(V){
+    var p=V.p,pairsOk=!$(p+"Pairs").hidden,t=TAB[p],r=V.rec();
+    if(t==="pr"&&!pairsOk)t="tr";
+    [].forEach.call($(p+"Tabs").querySelectorAll(".tab"),function(b){
+      var id=b.getAttribute("data-t");b.hidden=(id==="pr"&&!pairsOk);b.setAttribute("aria-selected",id===t?"true":"false");
+      if(id==="nt")b.textContent="Notes"+(r&&NOTES[key(r)]?" •":"");
+    });
+    [["tr","Tr"],["pr","Pr"],["nt","Nt"]].forEach(function(x){$(p+"Pane"+x[1]).classList.toggle("off",x[0]!==t)});
+    if(t==="pr")$(p+"Pairs").open=true;
+  }
+  [NP,PV].forEach(function(V){
+    [].forEach.call($(V.p+"Tabs").querySelectorAll(".tab"),function(b){b.onclick=function(){TAB[V.p]=b.getAttribute("data-t");syncTabs(V)}});
+    try{new MutationObserver(function(){syncTabs(V)}).observe($(V.p+"Pairs"),{attributes:true,attributeFilter:["hidden"]})}catch(e){}
+    $(V.p+"MyNote").addEventListener("input",function(){syncTabs(V)});
+    syncTabs(V);
   });
   if(read("spin_top_closed"))$("topDet").open=false;
   (function(){
