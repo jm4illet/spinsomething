@@ -391,6 +391,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <div><label for="fMood">Mood</label><select id="fMood"></select></div>
   </div>
   <div class="check"><input type="checkbox" id="surprise"><label for="surprise">Surprise me: favor records I haven’t played much, or not in a while</label></div>
+  <div class="check"><input type="checkbox" id="pairPick" checked><label for="pairPick">While a record is playing, pick from what “pairs well with” it</label></div>
   <div class="check"><input type="checkbox" id="noRepeat" checked><label for="noRepeat">Don’t repeat records until I’ve been through them all</label></div>
   <div class="row" style="justify-content:space-between;margin-top:8px">
     <div class="count" id="pool" style="margin:0"></div>
@@ -2310,7 +2311,13 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       if(!fresh.length){p.forEach(function(r){delete seen[key(r)]});fresh=p}
       p=fresh;
     }
-    var r=$("surprise").checked?weightedPick(p):p[Math.floor(Math.random()*p.length)];
+    var r=null,np=$("pairPick").checked?nowRec():null;
+    if(np){
+      var pk={};p.forEach(function(x){pk[key(x)]=x});
+      var cand=pairs(np).map(function(x){return pk[key(x.r)]}).filter(function(x){return x&&key(x)!==nowKey});
+      if(cand.length)r=cand[Math.floor(Math.random()*cand.length)];
+    }
+    if(!r)r=$("surprise").checked?weightedPick(p):p[Math.floor(Math.random()*p.length)];
     seen[key(r)]=1;
     return r;
   }
@@ -2341,6 +2348,8 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   };
 
   try{$("surprise").checked=!!localStorage.getItem("spin_surprise")}catch(e){}
+  try{$("pairPick").checked=localStorage.getItem("spin_pairpick")!=="0"}catch(e){}
+  $("pairPick").onchange=function(){try{localStorage.setItem("spin_pairpick",$("pairPick").checked?"1":"0")}catch(e){}};
   $("surprise").onchange=function(){try{if($("surprise").checked)localStorage.setItem("spin_surprise","1");else localStorage.removeItem("spin_surprise")}catch(e){}};
   FILTER_IDS.forEach(function(id){$(id).onchange=function(){seen={};updatePool()}});
   $("clearFilters").onclick=function(){
