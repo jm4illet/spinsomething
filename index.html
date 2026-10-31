@@ -136,6 +136,29 @@ body.hasmini main{padding-bottom:84px}
 .wbox .src{margin:6px 0 0;line-height:1.4}
 .wbox .src:has(a.info){position:absolute;top:6px;right:10px;margin:0;line-height:1}
 .wbox .src:empty{display:none}
+.wtog{display:block;background:none;border:0;padding:6px 0 0;margin:0;font:600 12px system-ui,sans-serif;color:var(--muted);cursor:pointer;text-align:left}
+.wtog[hidden]{display:none}
+.wbox.wcol .about,.wbox.wcol .src:not(:has(a.info)){display:none}
+.wbox.wcol{padding-bottom:6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;margin-top:10px}
+.seg button{background:none;border:0;padding:5px 12px;font:600 12px system-ui,sans-serif;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff}
+.tstat{margin:10px 0 0;font-size:14px}
+.tinfo{background:none;border:0;padding:0 4px;font-size:14px;color:var(--muted);cursor:pointer}
+.tart{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,auto);grid-auto-flow:column;gap:12px 14px}
+.tart li{display:flex;align-items:center;gap:10px;margin:0;min-width:0;border:0;padding:0}
+.tart .rk{width:14px;text-align:center;color:var(--muted);font-size:13px;flex:0 0 auto}
+.tart .tn{flex:1;min-width:0}
+.tart .tn b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tart .tn span{font-size:12px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:rgba(65,105,225,.10);border-radius:999px;padding:5px 11px;font-size:13px}
+.chip b{color:var(--muted);font-weight:600;margin-left:6px;font-size:12px}
+.chip.top{background:var(--accent);color:#fff}
+.chip.top b{color:#fff;opacity:.85}
+#tasteMore.tmore{display:block;margin:6px 0 0;padding:4px 12px;font-size:12px}
+#tasteGenWrap .chips{margin-bottom:0}
+.tasteh{margin:14px 0 0;font:600 12px system-ui,sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .wbox .src:not(:has(a.info)){display:block;clear:both;font-size:11px;font-style:italic;line-height:1.4;margin:8px 0 0;padding-right:0}
 .wbox .about{padding-right:22px}
 .src a.info{text-decoration:none;font-size:14px;color:var(--muted)}
@@ -289,6 +312,18 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <details id="topDet" open>
     <summary id="topHead">Most played</summary>
     <ul id="topList" style="margin-top:6px"></ul>
+  </details>
+</div>
+
+<div class="card" id="tasteCard" hidden>
+  <details id="tasteDet" open>
+    <summary id="tasteHead">Top artists &amp; genres</summary>
+    <div class="seg" role="group" aria-label="Time range"><button type="button" id="tasteAll">All time</button><button type="button" id="tasteMo">Last 30 days</button></div>
+    <p class="tstat"><span id="tasteStat"></span><button type="button" class="tinfo" id="tasteInfo" aria-label="How this is counted">ⓘ</button></p>
+    <div class="tasteh">Artists</div>
+    <ul class="tart" id="tasteArtists"></ul>
+    <div id="tasteGenWrap"><div class="tasteh">Genres</div><div class="chips" id="tasteGenres"></div><button type="button" class="btn ghost tmore" id="tasteMore" hidden>Show more</button></div>
+    <p class="meta" id="tasteNote" hidden style="margin:10px 0 0"></p>
   </details>
 </div>
 
@@ -1395,6 +1430,44 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   $("miniStop").onclick=function(){$("npStop").click()};
   function renderNow(){renderView(NP);renderTop();renderMini()}
   /* Most played: records ranked by spin count (ties go to the most recent spin) */
+  var TRANGE=read("spin_taste_range")==="30"?"30":"all",TMORE=false;
+  function renderTaste(){
+    var cut=TRANGE==="30"?Date.now()-30*864e5:0,A={},G={},tot=0,nrec=0,hasAny=false;
+    Object.keys(PLAYS).forEach(function(k){
+      var o=PLAYS[k];if(!o||!o.n)return;
+      var r=recByKey(k);if(!r)return;
+      hasAny=true;
+      var n=cut?(o.hist||[]).filter(function(t){return t>=cut}).length:o.n;
+      if(!n)return;
+      tot+=n;nrec++;
+      if(r.artist){var a=A[r.artist]||(A[r.artist]={name:r.artist,n:0,r:r,rn:0});a.n+=n;if(n>a.rn){a.rn=n;a.r=r}}
+      var seenG={},gl0=genres(r);if(!gl0.length)gl0=cats(r);
+      gl0.forEach(function(g){if(g&&!seenG[g]){seenG[g]=1;G[g]=(G[g]||0)+n}});
+    });
+    $("tasteCard").hidden=!hasAny;
+    $("tasteAll").className=TRANGE==="all"?"on":"";$("tasteMo").className=TRANGE==="30"?"on":"";
+    $("tasteAll").setAttribute("aria-pressed",TRANGE==="all");$("tasteMo").setAttribute("aria-pressed",TRANGE==="30");
+    var arts=Object.keys(A).map(function(n){return A[n]}).sort(function(x,y){return y.n-x.n||(x.name<y.name?-1:1)});
+    $("tasteNote").textContent="Counts every listen you’ve logged or spun"+(TRANGE==="30"?" in the last 30 days (listens without a date aren’t included)":"")+". Genres come from your collection, or the genre group when a record has none; a record with several genres counts toward each.";
+    $("tasteStat").textContent=tot?tot+(tot===1?" listen":" listens")+" · "+nrec+(nrec===1?" record":" records")+" · "+arts.length+(arts.length===1?" artist":" artists"):(TRANGE==="30"?"No listens in the last 30 days.":"");
+    var ul=$("tasteArtists");ul.innerHTML="";
+    arts.slice(0,6).forEach(function(a,i){
+      var li=document.createElement("li"),rk=document.createElement("div"),tn=document.createElement("div"),b=document.createElement("b"),s=document.createElement("span");
+      rk.className="rk";rk.textContent=String(i+1);
+      var cv=cover(a.r);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(a.r);
+      tn.className="tn";b.textContent=a.name;s.textContent=a.n+(a.n===1?" listen":" listens");tn.appendChild(b);tn.appendChild(s);
+      li.appendChild(rk);li.appendChild(cv);li.appendChild(tn);ul.appendChild(li);
+    });
+    var gs=Object.keys(G).map(function(n){return{n:n,c:G[n]}}).sort(function(x,y){return y.c-x.c||(x.n<y.n?-1:1)});
+    var shown=TMORE?gs.slice(0,14):gs.slice(0,5),gw=$("tasteGenres");gw.innerHTML="";
+    shown.forEach(function(g,i){var c=document.createElement("span"),b=document.createElement("b");c.className="chip"+(i===0?" top":"");c.textContent=g.n;b.textContent=g.c;c.appendChild(b);gw.appendChild(c)});
+    $("tasteGenWrap").hidden=!gs.length;
+    $("tasteMore").hidden=gs.length<=5;$("tasteMore").textContent=TMORE?"Show less":"Show more";
+  }
+  $("tasteAll").onclick=function(){TRANGE="all";store("spin_taste_range","all");renderTaste()};
+  $("tasteMo").onclick=function(){TRANGE="30";store("spin_taste_range","30");renderTaste()};
+  $("tasteMore").onclick=function(){TMORE=!TMORE;renderTaste()};
+  $("tasteInfo").onclick=function(){var n=$("tasteNote");n.hidden=!n.hidden};
   function renderTop(){
     var rows=[];
     Object.keys(PLAYS).forEach(function(k){
@@ -1404,6 +1477,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     rows.sort(function(a,b){return b.n-a.n||b.last-a.last});
     rows=rows.slice(0,10);
     $("topCard").hidden=!rows.length;
+    renderTaste();
     var ul=$("topList");ul.innerHTML="";
     $("topHead").textContent="Most played"+(rows.length?" (top "+rows.length+")":"");
     rows.forEach(function(x,i){
@@ -1898,6 +1972,15 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     });
 
   }
+  var WCOL=!!read("spin_wbox_closed");
+  function paintW(){["np","pv"].forEach(function(p){var box=$(p+"Box"),b=$(p+"Tog");if(!box||!b)return;box.classList.toggle("wcol",WCOL);b.textContent=(WCOL?"\u25b8":"\u25be")+" About this album";b.setAttribute("aria-expanded",WCOL?"false":"true")})}
+  ["np","pv"].forEach(function(p){
+    var box=$(p+"Box");if(!box)return;
+    var b=document.createElement("button");b.type="button";b.id=p+"Tog";b.className="wtog";b.hidden=true;
+    box.insertBefore(b,box.firstChild);
+    b.onclick=function(){WCOL=!WCOL;store("spin_wbox_closed",WCOL?1:0);paintW()};
+  });
+  paintW();
   function renderAbout(r,V){
     var k=key(r),w=WEB[k]||{},isBusy=!!busy["a"+k],f=failed["a"+k];
     var txt=w.extract||ABOUT[k]||(isBusy?(partial[k]||""):""),T=$(V.p+"Text"),N=$(V.p+"Note"),B=$(V.p+"Ask");
@@ -1920,6 +2003,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       add("No matching Wikipedia article found. Use the links above to look further.");
     }
     N.hidden=!N.childNodes.length;
+    var tg=$(V.p+"Tog");if(tg)tg.hidden=T.hidden;
     renderMore(r,V);
     B.hidden=!(sampleFn&&!w.extract&&!ABOUT[k]&&!isBusy&&(f==="error"||f==="declined"));
     B.disabled=false;B.textContent="Try again";
