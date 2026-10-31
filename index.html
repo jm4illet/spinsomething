@@ -398,6 +398,21 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <ul id="hist"></ul>
 </div>
 
+<div class="card" id="acctCard">
+  <h2 style="margin:0 0 6px;font-size:17px">Save your profile</h2>
+  <div id="acctForm">
+    <p class="meta" style="margin:0 0 8px">Sign in with your email to keep your listening history, favorites and notes across devices. No password: we email you a link.</p>
+    <label for="acctEmail">Email</label>
+    <input type="email" id="acctEmail" autocomplete="email" placeholder="you@example.com">
+    <button class="btn" id="acctSend" type="button" style="margin-top:8px">Email me a sign-in link</button>
+  </div>
+  <div id="acctOn" hidden>
+    <p style="margin:0">Signed in as <b id="acctWho"></b></p>
+    <button class="btn ghost" id="acctOut" type="button" style="margin-top:8px">Sign out</button>
+  </div>
+  <p class="meta" id="acctMsg" aria-live="polite" style="margin:8px 0 0"></p>
+</div>
+
 <div class="card">
   <details id="loader" open>
     <summary>Load / update collection</summary>
@@ -2468,7 +2483,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   function smk(k){var m=smeta();return m[k]||(m[k]={})}
   function savemeta(){try{localStorage.setItem("spin_sync_meta",JSON.stringify(SMETA||{}))}catch(e){}}
   function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
-  function setSync(msg){var e=$("syncMsg");if(e&&msg)e.textContent=msg}
+  function setSync(msg){var e=$("syncMsg");if(e&&msg)e.textContent=msg;var a=$("acctMsg");if(a&&msg&&SBS)a.textContent=msg}
   function isEmpty(v){return !v||(Array.isArray(v)?!v.length:!Object.keys(v).length)}
   function sreg(k,kind,get,set){SYNCMAP[k]={kind:kind,get:get,set:set}}
   SYNCMAP={};
@@ -2595,13 +2610,94 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     return p.then(function(){
       lastRecon=Date.now();
       if(changedByRemote)refreshAll();
-      if(!syncDead){syncReady=true;var t=new Date();setSync("Saved to your Claude account and this browser · synced "+t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}))}
+      if(!syncDead){syncReady=true;var t=new Date();setSync("Saved to your profile and this browser · synced "+t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}))}
     });
   }
   function reconAll(){return reconKeys(SYNC_ORDER)}
   function reconDirty(){
     var ks=SYNC_ORDER.filter(function(k){return smk(k).lt>0});
     return ks.length?reconKeys(ks):null;
+  }
+  /* ===== web version: sign in with an emailed link (Supabase) and sync through the same engine ===== */
+  var SB_URL="https://onwfwhvgmzvdmibyzpka.supabase.co",SB_KEY="sb_publishable_gLt5gwEZT8qzwpBjd8y5cQ_u1EjXx3k";
+  var SBS=read("spin_sb_session"),sbRef=null;
+  function sbSave(x){SBS=x;try{if(x)localStorage.setItem("spin_sb_session",JSON.stringify(x));else localStorage.removeItem("spin_sb_session")}catch(e){}}
+  function sbJwt(t){try{var p=String(t).split(".")[1].replace(/-/g,"+").replace(/_/g,"/");while(p.length%4)p+="=";return JSON.parse(atob(p))}catch(e){return null}}
+  function sbSession(h){var c=sbJwt(h.access_token);if(!c||!c.sub)return null;return{at:h.access_token,rt:h.refresh_token,exp:(c.exp||0)*1000,uid:c.sub,email:c.email||""}}
+  function paintAcct(msg){
+    var on=!!SBS;$("acctForm").hidden=on;$("acctOn").hidden=!on;
+    if(on)$("acctWho").textContent=SBS.email||"your profile";
+    if(msg)$("acctMsg").textContent=msg;
+  }
+  function sbOut(msg){sbSave(null);syncReady=false;syncDead=false;dbh=null;SUID=null;clearTimeout(syncTimer);paintAcct(msg||"")}
+  function sbRefresh(){
+    if(!SBS||!SBS.rt)return Promise.reject({code:"revoked"});
+    return fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:SBS.rt})})
+      .then(function(x){if(!x.ok)throw{code:"revoked"};return x.json()})
+      .then(function(j){var s=sbSession(j);if(!s)throw{code:"revoked"};sbSave(s);return s});
+  }
+  function sbToken(){
+    if(SBS&&SBS.exp-Date.now()>60000)return Promise.resolve(SBS.at);
+    if(!sbRef)sbRef=sbRefresh().then(function(s){sbRef=null;return s},function(e){sbRef=null;sbOut("Your sign-in expired. Sign in again to keep syncing.");throw e});
+    return sbRef.then(function(s){return s.at});
+  }
+  function sbReq(method,qs,body,extra){
+    function go(retry){
+      return sbToken().then(function(tok){
+        var h={apikey:SB_KEY,Authorization:"Bearer "+tok,"Content-Type":"application/json"},k;
+        for(k in (extra||{}))h[k]=extra[k];
+        return fetch(SB_URL+"/rest/v1/spin_data"+qs,{method:method,headers:h,body:body?JSON.stringify(body):undefined});
+      }).then(function(x){
+        if(x.status===401&&!retry){if(SBS)SBS.exp=0;return go(true)}
+        if(x.status===401)throw{code:"revoked"};
+        if(x.status===429)throw{code:"resource_exhausted"};
+        if(x.status>=500)throw{code:"unavailable"};
+        if(!x.ok)return x.text().then(function(t){throw{code:/quota|limit|too large/i.test(t)?"quota_exceeded":"invalid_argument",message:t.slice(0,160)}});
+        return x.status===204?null:x.text().then(function(t){return t?JSON.parse(t):null});
+      }).catch(function(e){if(e&&e.code)throw e;throw{code:"unavailable",message:String(e)}});
+    }
+    return go(false);
+  }
+  function sbDb(uid){
+    return{doc:function(path){
+      var id=path.split("/").pop(),f="?user_id=eq."+uid+"&k=eq."+encodeURIComponent(id);
+      return{
+        get:function(){return sbReq("GET",f+"&select=v",null,{}).then(function(r){var ex=!!(r&&r.length);return{exists:ex,data:function(){return ex?r[0].v:undefined}}})},
+        set:function(d){return sbReq("POST","?on_conflict=user_id,k",{user_id:uid,k:id,v:d,updated_at:new Date().toISOString()},{Prefer:"resolution=merge-duplicates,return=minimal"}).then(function(){})},
+        "delete":function(){return sbReq("DELETE",f,null,{Prefer:"return=minimal"}).then(function(){})}
+      };
+    }};
+  }
+  $("acctSend").onclick=function(){
+    var em=$("acctEmail").value.trim(),m=$("acctMsg");
+    if(!/^\S+@\S+\.\S+$/.test(em)){m.textContent="Enter a valid email address.";return}
+    $("acctSend").disabled=true;m.textContent="Sending…";
+    fetch(SB_URL+"/auth/v1/otp?redirect_to="+encodeURIComponent(location.origin+location.pathname),{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({email:em,create_user:true})})
+      .then(function(x){return x.ok?null:x.json().catch(function(){return{}}).then(function(j){throw j})})
+      .then(function(){m.textContent="Check your email for a sign-in link, then open it in this browser."})
+      .catch(function(j){var t=(j&&(j.msg||j.message||j.error_description))||"";m.textContent=/rate|seconds/i.test(t)?"Too many emails requested. Wait a minute and try again.":"Couldn’t send the link"+(t?" ("+t+")":"")+"."})
+      .then(function(){$("acctSend").disabled=false});
+  };
+  $("acctOut").onclick=function(){sbOut("Signed out. Your history stays in this browser.")};
+  function startSyncWeb(){
+    var h=location.hash||"",msg="";
+    if(/access_token=|error=/.test(h)){
+      var q={};
+      h.replace(/^#/,"").split("&").forEach(function(p){var i=p.indexOf("=");if(i>0){try{q[decodeURIComponent(p.slice(0,i))]=decodeURIComponent(p.slice(i+1).replace(/\+/g," "))}catch(e){}}});
+      try{history.replaceState(null,"",location.pathname+location.search)}catch(e){try{location.hash=""}catch(e2){}}
+      if(q.access_token){var s=sbSession(q);if(s)sbSave(s)}
+      else if(q.error_description)msg=/expired|invalid/i.test(q.error_description)?"That sign-in link expired or was already used. Request a new one.":q.error_description;
+    }
+    if(!SBS){paintAcct(msg);return}
+    var last=read("spin_sb_uid");
+    if(last&&last!==SBS.uid){SMETA={};savemeta()}
+    try{localStorage.setItem("spin_sb_uid",JSON.stringify(SBS.uid))}catch(e){}
+    paintAcct();
+    dbh=sbDb(SBS.uid);SUID=SBS.uid;setSync("Syncing with your profile…");
+    enq(reconAll);
+    document.addEventListener("visibilitychange",function(){
+      if(document.visibilityState==="visible"&&syncReady&&!syncDead&&Date.now()-lastRecon>30000)enq(function(){return reconAll()});
+    });
   }
   function startSync(){
     Promise.all([window.claude.use("db"),window.claude.use("user")]).then(function(a){
@@ -2620,7 +2716,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
 
   if(!(window.claude&&typeof window.claude.use==="function")){
     /* Running as a normal web page: look things up directly from the browser */
-    bridge={direct:true};diag("online lookups from your browser");
+    bridge={direct:true};diag("online lookups from your browser");startSyncWeb();
     renderTop();renderMissing();queueAllCovers();enrichYears();try{updatePool()}catch(e){}
     var r0=nowRec();if(r0)loadWeb(r0);var pr0=pvRec();if(pr0)loadWeb(pr0);
     autoFetch(NP);autoFetch(PV);
