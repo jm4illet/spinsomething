@@ -437,8 +437,9 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   </details>
 </div>
 <div class="card" id="acctCard">
-  <h2 style="margin:0 0 6px;font-size:17px">Save your profile</h2>
-  <div style="margin:0 0 12px">
+  <details id="acctDet" open>
+  <summary>Save your profile</summary>
+  <div style="margin:10px 0 12px">
     <label for="profName">Profile name</label>
     <div style="display:flex;gap:8px"><input type="text" id="profName" maxlength="40" placeholder="e.g. Josh" autocomplete="nickname" style="flex:1 1 auto;min-width:0"><button class="btn ghost" id="profSave" type="button" style="flex:0 0 auto;margin:0">Save</button></div>
     <p class="meta" id="profMsg" aria-live="polite" style="margin:6px 0 0"></p>
@@ -453,7 +454,15 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <p style="margin:0">Signed in as <b id="acctWho"></b></p>
     <button class="btn ghost" id="acctOut" type="button" style="margin-top:8px">Sign out</button>
   </div>
+  <div style="margin:14px 0 4px;padding-top:12px;border-top:1px solid var(--line,#ddd)">
+    <label>Listening history</label>
+    <p class="meta" style="margin:0 0 8px">Download your plays, history, favorites and notes as a file, or import one (it merges with what you already have).</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="ieExport" type="button" style="margin:0">Export</button><button class="btn ghost" id="ieImport" type="button" style="margin:0">Import file…</button></div>
+    <input type="file" id="ieFile" accept=".json,application/json" hidden>
+    <p class="meta" id="ieMsg" aria-live="polite" style="margin:6px 0 0"></p>
+  </div>
   <p class="meta" id="acctMsg" aria-live="polite" style="margin:8px 0 0"></p>
+  </details>
 </div>
 
 <p class="meta" id="webDiag" style="margin:0 0 16px;font-size:12px" hidden></p>
@@ -2703,6 +2712,45 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   };
   $("profName").onkeydown=function(ev){if(ev.key==="Enter"){ev.preventDefault();$("profSave").click()}};
   paintName();
+  if(read("spin_acct_closed"))$("acctDet").open=false;
+  $("acctDet").addEventListener("toggle",function(){store("spin_acct_closed",$("acctDet").open?0:1)});
+
+  /* listening history: export / import */
+  var LKEYS=["spin_plays_v1","spin_history_v1","spin_favs_v1","spin_notes_v1"];
+  function ieMsg(t){$("ieMsg").textContent=t}
+  $("ieExport").onclick=function(){
+    var data={};LKEYS.forEach(function(k){if(SYNCMAP[k])data[k]=SYNCMAP[k].get()});
+    var txt=JSON.stringify({app:"spin",v:1,kind:"listening",t:Date.now(),data:data},null,1);
+    try{
+      var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));
+      a.download="spin-listening-history.json";document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000);
+      ieMsg("Exported "+Object.keys(data.spin_plays_v1||{}).length+" records with plays.");
+    }catch(e){ieMsg("Couldn’t start the download.")}
+  };
+  function doImport(txt){
+    var j;try{j=JSON.parse(txt)}catch(e){ieMsg("That isn’t a valid history file.");return}
+    if(!j||j.app!=="spin"||!j.data){ieMsg("That file isn’t a Spin listening history.");return}
+    var did=0;
+    LKEYS.forEach(function(k){
+      var V=j.data[k],d=SYNCMAP[k];if(V==null||!d)return;
+      var L=d.get(),R;
+      if(k==="spin_plays_v1")R=mergePlays(L||{},V||{});
+      else if(k==="spin_history_v1"){
+        R=(L||[]).slice();var seen={};R.forEach(function(r){seen[(r.artist||"")+"|"+(r.title||"")]=1});
+        (V||[]).forEach(function(r){var s=(r.artist||"")+"|"+(r.title||"");if(!seen[s]){seen[s]=1;R.push(r)}});
+      }else R=assignAll(V||{},L||{});
+      applyLocal(k,R);syncTouch(k);did++;
+    });
+    try{refreshAll()}catch(e){}
+    var n=Object.keys((SYNCMAP.spin_plays_v1.get()||{})).length;
+    ieMsg("Imported. You now have plays for "+n+" records"+(SBS?" and they’re syncing to your profile.":"."));
+  }
+  $("ieFile").onchange=function(){
+    var f=this.files&&this.files[0];if(!f)return;
+    var r=new FileReader();r.onload=function(){doImport(String(r.result))};r.readAsText(f);this.value="";
+  };
+  $("ieImport").onclick=function(){$("ieFile").click()};
   function startSyncWeb(){
     var h=location.hash||"",msg="";
     if(/access_token=|error=/.test(h)){
