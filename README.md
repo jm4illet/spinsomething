@@ -14,4 +14,14 @@
 
 ## What doesn't
 - Claude-written summaries, tracklists and standout tracks only work inside the Claude artifact.
-- Data is per browser and per device; it does not sync with the artifact.
+- It does not sync with the Claude artifact.
+- Without signing in, data stays in that one browser.
+
+## Profiles (sign in to sync across devices)
+The page has a "Save your profile" card. Visitors enter their email, open the emailed link, and their history, favorites, notes and summaries sync to the Supabase project below. Each person can only read and write their own rows (row-level security).
+
+- Project: `https://onwfwhvgmzvdmibyzpka.supabase.co` (the publishable key is in `index.html`; that key is meant to be public).
+- Table `spin_data (user_id, k, v, updated_at)` with the policy "own rows" (see the SQL you ran when setting it up).
+- In Supabase, Authentication -> URL Configuration: set Site URL to your site (https://joshmaillet.com) and add the exact page address under Redirect URLs, or the emailed link will not return to the page.
+- Supabase's built-in email sender is limited to a few emails an hour; connect your own SMTP service if many people will sign up.
+- Never put the `service_role` / secret key in the page.
