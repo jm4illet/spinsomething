@@ -119,6 +119,15 @@ body.hasmini main{padding-bottom:84px}
   main{max-width:1120px}
   .cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:0 20px;align-items:start}
 }
+.fwbtn{display:none}
+@media (min-width:900px){
+  #filters{position:relative}
+  .fwbtn{display:inline-block;position:absolute;top:12px;right:14px;margin:0;padding:3px 11px;font-size:12px}
+  .cols.fwide{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+  .cols.fwide #matchList{max-height:640px}
+  .cols.fwide #matchList li{gap:16px;padding:8px 0}
+  .cols.fwide #matchList .cover{width:96px;height:96px;flex:0 0 96px;font-size:44px;border-radius:8px}
+}
 .more{margin:8px 0;font-size:13px;line-height:1.5}.more p{margin:4px 0}.more .rv a{margin-right:10px}.more .nt{color:var(--muted)}
 .nplinks a{border:1px solid var(--line);border-radius:999px;padding:3px 11px;text-decoration:none;white-space:nowrap}
 .nplinks a.rvl{color:var(--muted)}
@@ -158,6 +167,17 @@ body.hasmini main{padding-bottom:84px}
 .chip.top b{color:#fff;opacity:.85}
 #tasteMore.tmore{display:block;margin:6px 0 0;padding:4px 12px;font-size:12px}
 #tasteGenWrap .chips{margin-bottom:0}
+.tart li{cursor:pointer}
+.tart li.sel .tn b{color:var(--accent)}
+.chip{cursor:pointer}
+.chip.sel{outline:2px solid var(--accent);outline-offset:1px}
+.tdet{margin:10px 0 0;padding:6px 12px 8px;background:rgba(65,105,225,.08);border-radius:10px}
+.tdh{display:flex;justify-content:space-between;align-items:center;font:600 13px system-ui,sans-serif;margin:4px 0}
+.tdx{background:none;border:0;font-size:20px;line-height:1;color:var(--muted);cursor:pointer;padding:0 2px}
+.tdr{display:flex;align-items:center;gap:10px;margin:8px 0}
+.tdr .tn{flex:1;min-width:0}
+.tdr .tn b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tdr .tn span{font-size:12px;color:var(--muted)}
 .tasteh{margin:14px 0 0;font:600 12px system-ui,sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .wbox .src:not(:has(a.info)){display:block;clear:both;font-size:11px;font-style:italic;line-height:1.4;margin:8px 0 0;padding-right:0}
 .wbox .about{padding-right:22px}
@@ -322,7 +342,8 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <p class="tstat"><span id="tasteStat"></span><button type="button" class="tinfo" id="tasteInfo" aria-label="How this is counted">ⓘ</button></p>
     <div class="tasteh">Artists</div>
     <ul class="tart" id="tasteArtists"></ul>
-    <div id="tasteGenWrap"><div class="tasteh">Genres</div><div class="chips" id="tasteGenres"></div><button type="button" class="btn ghost tmore" id="tasteMore" hidden>Show more</button></div>
+    <div class="tdet" id="tasteDetA" hidden></div>
+    <div id="tasteGenWrap"><div class="tasteh">Genres</div><div class="chips" id="tasteGenres"></div><div class="tdet" id="tasteDetG" hidden></div><button type="button" class="btn ghost tmore" id="tasteMore" hidden>Show more</button></div>
     <p class="meta" id="tasteNote" hidden style="margin:10px 0 0"></p>
   </details>
 </div>
@@ -345,6 +366,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 </div>
 
 <div class="card" id="filters" hidden>
+  <button type="button" class="btn ghost fwbtn" id="filtWide" aria-pressed="false" aria-label="Expand filters" title="Expand">⤢</button>
   <details id="filtDet" open>
   <summary id="filtHead">Filters</summary>
   <div class="row" style="margin-top:10px">
@@ -353,7 +375,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <div><label for="fFolder">Folder</label><select id="fFolder"></select></div>
     <div><label for="fGroup">Genre group</label><select id="fGroup"></select></div>
     <div id="genreWrap"><label for="fGenre">Genre (from CSV)</label><select id="fGenre"></select></div>
-    <div><label for="fDecade">Decade (original release)</label><select id="fDecade"></select></div>
+    <div><label for="fDecade">Decade</label><select id="fDecade"></select></div>
     <div><label for="fMood">Mood</label><select id="fMood"></select></div>
   </div>
   <div class="check"><input type="checkbox" id="surprise"><label for="surprise">Surprise me: favor records I haven’t played much, or not in a while</label></div>
@@ -1430,9 +1452,30 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   $("miniStop").onclick=function(){$("npStop").click()};
   function renderNow(){renderView(NP);renderTop();renderMini()}
   /* Most played: records ranked by spin count (ties go to the most recent spin) */
-  var TRANGE=read("spin_taste_range")==="30"?"30":"all",TMORE=false;
+  var TRANGE=read("spin_taste_range")==="30"?"30":"all",TMORE=false,TSEL=null;
+  function pickTaste(t,n){TSEL=(TSEL&&TSEL.t===t&&TSEL.n===n)?null:{t:t,n:n};renderTaste()}
+  function paintDetail(id,t,R){
+    var d=$(id);d.innerHTML="";
+    if(!TSEL||TSEL.t!==t||!R[TSEL.n]){d.hidden=true;return}
+    d.hidden=false;
+    var list=R[TSEL.n].slice().sort(function(x,y){return y.last-x.last});
+    var h=document.createElement("div");h.className="tdh";
+    var ht=document.createElement("span");ht.textContent=TSEL.n+" \u00b7 "+list.length+(list.length===1?" record":" records");h.appendChild(ht);
+    var x=document.createElement("button");x.type="button";x.className="tdx";x.textContent="\u00d7";x.setAttribute("aria-label","Close");x.onclick=function(){TSEL=null;renderTaste()};h.appendChild(x);d.appendChild(h);
+    list.forEach(function(e){
+      var row=document.createElement("div");row.className="tdr";
+      var cv=cover(e.r);cv.style.width=cv.style.height="36px";cv.style.fontSize="18px";requestCover(e.r);
+      var tx=document.createElement("div"),b=document.createElement("b"),sp=document.createElement("span");
+      tx.className="tn";b.textContent=e.r.title;
+      var ds="";try{ds=e.last?new Date(e.last).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):""}catch(er){}
+      sp.textContent=[t==="g"?e.r.artist:"",e.n+(e.n===1?" listen":" listens"),ds?"last "+ds:""].filter(Boolean).join(" \u00b7 ");
+      tx.appendChild(b);tx.appendChild(sp);
+      var pb=document.createElement("button");pb.type="button";pb.className="btn ghost qbtn";pb.textContent="Preview";pb.setAttribute("aria-label","Preview "+e.r.title);pb.onclick=function(){openPreview(e.r)};
+      row.appendChild(cv);row.appendChild(tx);row.appendChild(pb);d.appendChild(row);
+    });
+  }
   function renderTaste(){
-    var cut=TRANGE==="30"?Date.now()-30*864e5:0,A={},G={},tot=0,nrec=0,hasAny=false;
+    var cut=TRANGE==="30"?Date.now()-30*864e5:0,A={},G={},tot=0,nrec=0,hasAny=false,RA={},RG={};
     Object.keys(PLAYS).forEach(function(k){
       var o=PLAYS[k];if(!o||!o.n)return;
       var r=recByKey(k);if(!r)return;
@@ -1440,9 +1483,11 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       var n=cut?(o.hist||[]).filter(function(t){return t>=cut}).length:o.n;
       if(!n)return;
       tot+=n;nrec++;
+      var lastIn=cut?Math.max.apply(null,(o.hist||[]).filter(function(t){return t>=cut})):(o.last||0),ent={r:r,n:n,last:lastIn};
+      if(r.artist)(RA[r.artist]=RA[r.artist]||[]).push(ent);
       if(r.artist){var a=A[r.artist]||(A[r.artist]={name:r.artist,n:0,r:r,rn:0});a.n+=n;if(n>a.rn){a.rn=n;a.r=r}}
       var seenG={},gl0=genres(r);if(!gl0.length)gl0=cats(r);
-      gl0.forEach(function(g){if(g&&!seenG[g]){seenG[g]=1;G[g]=(G[g]||0)+n}});
+      gl0.forEach(function(g){if(g&&!seenG[g]){seenG[g]=1;G[g]=(G[g]||0)+n;(RG[g]=RG[g]||[]).push(ent)}});
     });
     $("tasteCard").hidden=!hasAny;
     $("tasteAll").className=TRANGE==="all"?"on":"";$("tasteMo").className=TRANGE==="30"?"on":"";
@@ -1457,11 +1502,17 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       var cv=cover(a.r);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(a.r);
       tn.className="tn";b.textContent=a.name;s.textContent=a.n+(a.n===1?" listen":" listens");tn.appendChild(b);tn.appendChild(s);
       li.appendChild(rk);li.appendChild(cv);li.appendChild(tn);ul.appendChild(li);
+      li.tabIndex=0;li.setAttribute("role","button");li.setAttribute("aria-label","Show records by "+a.name);
+      if(TSEL&&TSEL.t==="a"&&TSEL.n===a.name)li.className="sel";
+      li.onclick=function(){pickTaste("a",a.name)};
+      li.onkeydown=function(ev){if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();pickTaste("a",a.name)}};
     });
     var gs=Object.keys(G).map(function(n){return{n:n,c:G[n]}}).sort(function(x,y){return y.c-x.c||(x.n<y.n?-1:1)});
     var shown=TMORE?gs.slice(0,14):gs.slice(0,5),gw=$("tasteGenres");gw.innerHTML="";
-    shown.forEach(function(g,i){var c=document.createElement("span"),b=document.createElement("b");c.className="chip"+(i===0?" top":"");c.textContent=g.n;b.textContent=g.c;c.appendChild(b);gw.appendChild(c)});
+    shown.forEach(function(g,i){var c=document.createElement("span"),b=document.createElement("b");c.className="chip"+(i===0?" top":"")+(TSEL&&TSEL.t==="g"&&TSEL.n===g.n?" sel":"");c.tabIndex=0;c.setAttribute("role","button");
+      c.onclick=function(){pickTaste("g",g.n)};c.onkeydown=function(ev){if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();pickTaste("g",g.n)}};c.textContent=g.n;b.textContent=g.c;c.appendChild(b);gw.appendChild(c)});
     $("tasteGenWrap").hidden=!gs.length;
+    paintDetail("tasteDetA","a",RA);paintDetail("tasteDetG","g",RG);
     $("tasteMore").hidden=gs.length<=5;$("tasteMore").textContent=TMORE?"Show less":"Show more";
   }
   $("tasteAll").onclick=function(){TRANGE="all";store("spin_taste_range","all");renderTaste()};
@@ -1972,6 +2023,13 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     });
 
   }
+  var FW=!!read("spin_filt_wide");
+  function paintFW(){
+    var c=document.querySelector(".cols"),b=$("filtWide");if(!c||!b)return;
+    c.classList.toggle("fwide",FW);b.textContent=FW?"\u2921":"\u2922";b.title=FW?"Shrink":"Expand";b.setAttribute("aria-label",FW?"Shrink filters":"Expand filters");b.setAttribute("aria-pressed",FW?"true":"false");
+  }
+  if($("filtWide"))$("filtWide").onclick=function(){FW=!FW;store("spin_filt_wide",FW?1:0);paintFW()};
+  paintFW();
   var WCOL=!!read("spin_wbox_closed");
   function paintW(){["np","pv"].forEach(function(p){var box=$(p+"Box"),b=$(p+"Tog");if(!box||!b)return;box.classList.toggle("wcol",WCOL);b.textContent=(WCOL?"\u25b8":"\u25be")+" About this album";b.setAttribute("aria-expanded",WCOL?"false":"true")})}
   ["np","pv"].forEach(function(p){
