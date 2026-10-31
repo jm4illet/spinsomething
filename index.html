@@ -67,7 +67,9 @@ a{color:var(--accent)}
 .playbtn{margin-left:auto;flex:0 0 auto}
 main{position:relative}
 h1{padding-right:56px;margin-bottom:20px}
-h1+.sub:not([hidden]){margin-top:-12px}
+h1+.sub:not([hidden]),.collname+.sub:not([hidden]){margin-top:-12px}
+.collname{margin:-14px 0 16px;font-size:16px;color:var(--muted)}
+.collname[hidden]{display:none}
 .tgl{position:absolute;top:22px;right:18px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .tgl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .cols>div{min-width:0}
@@ -209,6 +211,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 <main>
 <button class="tgl" id="themeBtn" type="button" aria-label="Toggle dark mode"></button>
 <h1>Spin Something</h1>
+<p class="collname" id="collName" hidden></p>
 <p class="sub" id="status">Load your collection to get started.</p>
 
 <div class="cols">
@@ -398,21 +401,6 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <ul id="hist"></ul>
 </div>
 
-<div class="card" id="acctCard">
-  <h2 style="margin:0 0 6px;font-size:17px">Save your profile</h2>
-  <div id="acctForm">
-    <p class="meta" style="margin:0 0 8px">Sign in with your email to keep your listening history, favorites and notes across devices. No password: we email you a link.</p>
-    <label for="acctEmail">Email</label>
-    <input type="email" id="acctEmail" autocomplete="email" placeholder="you@example.com">
-    <button class="btn" id="acctSend" type="button" style="margin-top:8px">Email me a sign-in link</button>
-  </div>
-  <div id="acctOn" hidden>
-    <p style="margin:0">Signed in as <b id="acctWho"></b></p>
-    <button class="btn ghost" id="acctOut" type="button" style="margin-top:8px">Sign out</button>
-  </div>
-  <p class="meta" id="acctMsg" aria-live="polite" style="margin:8px 0 0"></p>
-</div>
-
 <div class="card">
   <details id="loader" open>
     <summary>Load / update collection</summary>
@@ -448,6 +436,26 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <ul id="logList" style="margin-top:6px"></ul>
   </details>
 </div>
+<div class="card" id="acctCard">
+  <h2 style="margin:0 0 6px;font-size:17px">Save your profile</h2>
+  <div style="margin:0 0 12px">
+    <label for="profName">Profile name</label>
+    <div style="display:flex;gap:8px"><input type="text" id="profName" maxlength="40" placeholder="e.g. Josh" autocomplete="nickname" style="flex:1 1 auto;min-width:0"><button class="btn ghost" id="profSave" type="button" style="flex:0 0 auto;margin:0">Save</button></div>
+    <p class="meta" id="profMsg" aria-live="polite" style="margin:6px 0 0"></p>
+  </div>
+  <div id="acctForm">
+    <p class="meta" style="margin:0 0 8px">Sign in with your email to keep your listening history, favorites and notes across devices. No password: we email you a link.</p>
+    <label for="acctEmail">Email</label>
+    <input type="email" id="acctEmail" autocomplete="email" placeholder="you@example.com">
+    <button class="btn" id="acctSend" type="button" style="margin-top:8px">Email me a sign-in link</button>
+  </div>
+  <div id="acctOn" hidden>
+    <p style="margin:0">Signed in as <b id="acctWho"></b></p>
+    <button class="btn ghost" id="acctOut" type="button" style="margin-top:8px">Sign out</button>
+  </div>
+  <p class="meta" id="acctMsg" aria-live="polite" style="margin:8px 0 0"></p>
+</div>
+
 <p class="meta" id="webDiag" style="margin:0 0 16px;font-size:12px" hidden></p>
 </div>
 </div>
@@ -2679,6 +2687,22 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       .then(function(){$("acctSend").disabled=false});
   };
   $("acctOut").onclick=function(){sbOut("Signed out. Your history stays in this browser.")};
+  /* profile name: saved locally, and synced with the account */
+  var PROFILE=read("spin_profile")||{};
+  function paintName(){
+    var n=String((PROFILE&&PROFILE.name)||"").trim(),e=$("collName");
+    if(e){e.hidden=!n;e.textContent=n?n+(/s$/i.test(n)?"\u2019":"\u2019s")+" collection":""}
+    var i=$("profName");if(i&&document.activeElement!==i)i.value=n;
+  }
+  sreg("spin_profile","lww",function(){return PROFILE},function(v){PROFILE=v||{};paintName()});
+  SYNC_ORDER.push("spin_profile");
+  $("profSave").onclick=function(){
+    var v=$("profName").value.trim().slice(0,40);
+    PROFILE={name:v};store("spin_profile",PROFILE);paintName();
+    $("profMsg").textContent=v?"Saved.":"Name cleared.";
+  };
+  $("profName").onkeydown=function(ev){if(ev.key==="Enter"){ev.preventDefault();$("profSave").click()}};
+  paintName();
   function startSyncWeb(){
     var h=location.hash||"",msg="";
     if(/access_token=|error=/.test(h)){
