@@ -1552,7 +1552,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     arts.slice(0,6).forEach(function(a,i){
       var li=document.createElement("li"),rk=document.createElement("div"),tn=document.createElement("div"),b=document.createElement("b"),s=document.createElement("span");
       rk.className="rk";rk.textContent=String(i+1);
-      var cv=cpv(cover(a.r),a.r,"art");cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(a.r);
+      var cv=cpv(cover(a.r),a.r,"art",a.name);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(a.r);
       tn.className="tn";b.textContent=a.name;s.textContent=a.n+(a.n===1?" listen":" listens");tn.appendChild(b);tn.appendChild(s);
       li.appendChild(rk);li.appendChild(cv);li.appendChild(tn);ul.appendChild(li);
       li.tabIndex=0;li.setAttribute("role","button");li.setAttribute("aria-label","Show records by "+a.name);
@@ -1651,11 +1651,27 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   }
   /* Tap a cover to open a short summary of that record right under its row (the same details as the Preview card) */
   var INL={open:{}};
+  /* Trim a summary to whole sentences only: never stops mid-sentence, and drops a trailing fragment that has no ending */
+  function inlSents(t){
+    var parts=t.split(/(?<=[.!?]["\u201d\u2019)]?)\s+(?=["\u201c(\[]?[A-Z0-9])/),out=[];
+    parts.forEach(function(x){
+      var pv=out[out.length-1];
+      if(pv&&/(\b(?:Inc|Ltd|Jr|Sr|St|Dr|Mr|Mrs|Ms|vs|Bros|Co|Corp|No|feat|ft|Vol|Op|approx|c|ca|b|d|U\.S|U\.K|e\.g|i\.e|[A-Z])\.)$/.test(pv))out[out.length-1]=pv+" "+x;
+      else out.push(x);
+    });
+    return out;
+  }
   function inlSnip(t){
-    t=(t||"").replace(/\s+/g," ").trim();if(t.length<=380)return t;
-    var ss=t.match(/[^.!?]+[.!?]+(\s|$)/g)||[t],o="";
-    for(var i=0;i<ss.length&&o.length<260;i++)o+=ss[i];
-    return (o||t.slice(0,380)).trim()+(o.length<t.length?" \u2026":"");
+    t=(t||"").replace(/\s+/g," ").trim();if(!t)return t;
+    var ss=inlSents(t),o="";
+    for(var i=0;i<ss.length;i++){
+      var x=ss[i],done=/[.!?]["\u201d\u2019)]?$/.test(x);
+      if(!done&&o)break;
+      if(o&&(o+" "+x).length>480)break;
+      o=o?o+" "+x:x;
+      if(o.length>=260)break;
+    }
+    return o;
   }
   function inlFill(pn,r){
     var k=key(r),w=WEB[k]||{},txt=w.extract||ABOUT[k]||"";
@@ -1675,6 +1691,67 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     var bc=document.createElement("button");bc.type="button";bc.className="btn ghost qbtn";bc.textContent="Close";bc.style.marginLeft="6px";
     bc.onclick=function(){inlClose(pn)};pn.appendChild(bc);
   }
+  /* Artist summaries come from Wikipedia's intro for the artist (cached in this browser) */
+  var ARTW=read("spin_artw_v2")||{},ARTB={};
+  function artPick(list,name){
+    var n=nw(name),first=n.split(" ")[0],best=null;
+    list.forEach(function(p){
+      var ex=p.extract||"",tt=nw(baseTitle(p.title));
+      if(!ex||/may (also )?refer to/i.test(ex))return;
+      if(!(tt===n||tt.indexOf(n)===0||(n.indexOf(tt)===0&&tt.length>2)))return;
+      if(!/\b(singer|band|musician|rapper|duo|group|songwriter|DJ|producer|composer|vocalist|artist|trio|quartet|rock|pop|hip hop)\b/i.test(ex)||nw(ex).indexOf(first)<0)return;
+      if(!best||(tt===n&&nw(baseTitle(best.title))!==n))best=p;
+    });
+    return best&&{extract:best.extract,url:best.fullurl||("https://en.wikipedia.org/wiki/"+encodeURIComponent(best.title.replace(/ /g,"_"))),title:best.title};
+  }
+  function artQuery(q){return "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&"+q+"&prop=extracts%7Cinfo&exintro=1&explaintext=1&exsentences=4&exlimit=max&inprop=url"}
+  function artPages(j){var pg=(j.query&&j.query.pages)||{};return Object.keys(pg).map(function(i){return pg[i]}).sort(function(x,y){return (x.index||0)-(y.index||0)})}
+  /* Try the artist's own page first (plain name, then the usual disambiguation titles), then fall back to a search */
+  function fetchArtist(name){
+    var ts=[name].concat(["band","singer","musician","rapper","group","duo","American band","English band","British band"].map(function(x){return name+" ("+x+")"}));
+    return getJSON(artQuery("titles="+encodeURIComponent(ts.join("|")))).then(function(j){return artPick(artPages(j),name)}).catch(function(){return null}).then(function(x){
+      if(x)return x;
+      return getJSON(artQuery("generator=search&gsrlimit=10&gsrsearch="+encodeURIComponent(name+" musician"))).then(function(j){return artPick(artPages(j),name)});
+    });
+  }
+  function loadArtist(name){
+    if(ARTB[name]||(ARTW[name]&&ARTW[name].extract))return;
+    ARTB[name]=1;var w=ARTW[name]={};
+    fetchArtist(name).then(function(x){if(x){w.extract=x.extract;w.url=x.url;w.wtitle=x.title;store("spin_artw_v2",ARTW)}}).catch(function(){w.err=1}).then(function(){delete ARTB[name]});
+  }
+  function inlFillArtist(pn,name){
+    var w=ARTW[name]||{},txt=w.extract||"";
+    pn.innerHTML="";
+    var h=document.createElement("div");h.style.cssText="font-weight:600";h.textContent=name;pn.appendChild(h);
+    var recs=records.filter(function(r){return r.artist===name}),n=0;
+    recs.forEach(function(r){var o=PLAYS[key(r)];if(o&&o.n)n+=o.n});
+    var m=recs.length+(recs.length===1?" record":" records")+" in your collection"+(n?" \u00b7 "+n+(n===1?" listen":" listens"):"");
+    var d=document.createElement("div");d.className="meta";d.textContent=m;pn.appendChild(d);
+    var a=document.createElement("p");a.className="about";a.style.margin="8px 0 4px";
+    a.textContent=txt?inlSnip(txt):(ARTB[name]?"Looking up a summary\u2026":(w.err?"Couldn\u2019t reach Wikipedia right now.":"No Wikipedia summary found for this artist."));
+    pn.appendChild(a);
+    if(w.extract&&w.url){var al=document.createElement("a");al.className="info";al.href=w.url;al.target="_blank";al.rel="noopener";al.textContent="\u24d8 Wikipedia";al.style.cssText="font-size:12px;margin-right:12px";pn.appendChild(al)}
+    var cut=TRANGE==="30"?Date.now()-30*864e5:0,top=[];
+    recs.forEach(function(r){
+      var o=PLAYS[key(r)];if(!o||!o.n)return;
+      var c=cut?(o.hist||[]).filter(function(t){return t>=cut}).length:o.n;
+      if(c)top.push({r:r,n:c,last:o.last||0});
+    });
+    top.sort(function(x,y){return y.n-x.n||y.last-x.last});
+    if(top.length){
+      var hd=document.createElement("div");hd.className="meta";hd.style.cssText="margin:12px 0 4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:11px";
+      hd.textContent="Most listened"+(cut?" (last 30 days)":"");pn.appendChild(hd);
+      top.slice(0,6).forEach(function(x,i){
+        var row=document.createElement("div");row.style.cssText="display:flex;gap:8px;align-items:baseline;padding:3px 0";
+        var rk=document.createElement("span");rk.className="meta";rk.style.cssText="flex:0 0 16px;text-align:right";rk.textContent=String(i+1);
+        var tt=document.createElement("span");tt.style.cssText="flex:1;min-width:0";tt.textContent=x.r.title+(x.r.year?" ("+x.r.year+")":"");
+        var nn=document.createElement("span");nn.className="meta";nn.style.cssText="flex:0 0 auto;white-space:nowrap";nn.textContent=x.n+(x.n===1?" listen":" listens");
+        row.appendChild(rk);row.appendChild(tt);row.appendChild(nn);pn.appendChild(row);
+      });
+    }
+    var bc=document.createElement("button");bc.type="button";bc.className="btn ghost qbtn";bc.textContent="Close";bc.style.marginTop="8px";
+    bc.onclick=function(){inlClose(pn)};pn.appendChild(bc);
+  }
   function inlClose(pn){
     delete INL.open[pn._ck];
     if(pn._cv){pn._cv.classList.remove("cpl");pn._cv.setAttribute("aria-expanded","false")}
@@ -1683,33 +1760,34 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   }
   /* The top-artists list is a two-column grid, so its summary opens full width below the whole grid instead of inside it */
   function inlAnchor(row){return row.parentNode&&row.parentNode.classList&&row.parentNode.classList.contains("tart")?row.parentNode:row}
-  function inlShow(cv,r,ck,row){
+  function inlShow(cv,r,ck,row,an){
     if(!row||!row.parentNode)return;
     Array.prototype.slice.call(document.querySelectorAll(".inl")).forEach(inlClose);
     INL.open={};
     var anc=inlAnchor(row),pn=document.createElement(anc===row?"li":"div");pn.className="inl";pn._ck=ck;pn._cv=cv;
-    inlFill(pn,r);anc.parentNode.insertBefore(pn,anc.nextSibling);
+    var fill=an?function(){inlFillArtist(pn,an)}:function(){inlFill(pn,r)};
+    fill();anc.parentNode.insertBefore(pn,anc.nextSibling);
     INL.open[ck]=1;cv.classList.add("cpl");cv.setAttribute("aria-expanded","true");
-    var k=key(r);loadWeb(r);
+    var k=key(r);if(an)loadArtist(an);else loadWeb(r);
     var n=0;pn._iv=setInterval(function(){
       if(!pn.parentNode||++n>40){clearInterval(pn._iv);return}
-      var before=pn.textContent;inlFill(pn,r);
-      if(!webBusy[k]&&!(WEB[k]&&WEB[k].done===undefined&&!WEB[k].werr&&false)){if(pn.textContent===before&&n>2)clearInterval(pn._iv)}
+      var before=pn.textContent;fill();
+      if(pn.textContent===before&&n>2)clearInterval(pn._iv);
     },900);
   }
-  function cpv(cv,r,ctx){
-    var k=key(r),ck=(ctx||"")+"|"+k;
+  function cpv(cv,r,ctx,an){
+    var k=key(r),ck=(ctx||"")+"|"+(an||k);
     cv.classList.add("cpv");cv.removeAttribute("aria-hidden");cv.tabIndex=0;cv.setAttribute("role","button");
-    cv.setAttribute("aria-expanded","false");cv.setAttribute("aria-label","Show a short summary of "+r.title);cv.title="Show a short summary";
+    cv.setAttribute("aria-expanded","false");cv.setAttribute("aria-label","Show a short summary of "+(an||r.title));cv.title="Show a short summary";
     function row(){return cv.closest("li,.tdr")}
     function go(ev){
       ev.stopPropagation();if(ev.type==="keydown"){if(ev.key!=="Enter"&&ev.key!==" ")return;ev.preventDefault()}
       var nx=row()&&inlAnchor(row()).nextSibling;
       if(nx&&nx.classList&&nx.classList.contains("inl")&&nx._ck===ck){inlClose(nx);return}
-      inlShow(cv,r,ck,row());
+      inlShow(cv,r,ck,row(),an);
     }
     cv.onclick=go;cv.onkeydown=go;
-    if(INL.open[ck])Promise.resolve().then(function(){var rw=row();if(rw){var ns=inlAnchor(rw).nextSibling;if(!(ns&&ns.classList&&ns.classList.contains("inl")))inlShow(cv,r,ck,rw)}});
+    if(INL.open[ck])Promise.resolve().then(function(){var rw=row();if(rw){var ns=inlAnchor(rw).nextSibling;if(!(ns&&ns.classList&&ns.classList.contains("inl")))inlShow(cv,r,ck,rw,an)}});
     return cv;
   }
   function renderPairs(r,V){
