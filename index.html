@@ -60,11 +60,19 @@ a{color:var(--accent)}
 .count{font-family:system-ui,sans-serif;font-size:13px;color:var(--muted);margin-top:8px}
 #matchList{margin-top:10px;max-height:420px;overflow-y:auto}
 #matchList li{display:flex;gap:12px;align-items:center}
+#matchList li.inl{display:block;gap:0;align-items:initial}
 .cover{width:52px;height:52px;border-radius:6px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:28px;line-height:1;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15),0 1px 3px rgba(0,0,0,.25)}
 .mi{min-width:0;flex:1 1 auto}
 .mi .mt{font-weight:600;word-break:break-word}
 .mi .ma,.mi .mm{color:var(--muted);font-size:13px}
 .mi .mv{font-size:13px;font-style:italic;margin-top:2px}
+.cover.cpv{position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cover.cpv::after{content:"\24d8";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;background:rgba(0,0,0,.28);border-radius:inherit;opacity:0;transition:opacity .15s;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.cover.cpv:hover::after,.cover.cpv:focus-visible::after{opacity:1}
+.cover.cpv.cpl::after{content:"\25b4";opacity:1;background:rgba(0,0,0,.45)}
+div.inl{margin-top:18px}
+.inl{font-family:system-ui,sans-serif;list-style:none;background:rgba(65,105,225,.10);border-radius:10px;padding:10px 14px;margin:10px 0 10px;font-size:14px;line-height:1.5;display:block;flex:0 0 100%}
+@media (hover:none){.cover.cpv::after{opacity:.9;background:rgba(0,0,0,.22);font-size:13px}}
 .cover.big{width:120px;height:120px;font-size:56px;border-radius:8px}
 .np{display:flex;gap:14px;align-items:center}
 .npinfo{min-width:0}
@@ -1509,7 +1517,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     var x=document.createElement("button");x.type="button";x.className="tdx";x.textContent="\u00d7";x.setAttribute("aria-label","Close");x.onclick=function(){TSEL=null;renderTaste()};h.appendChild(x);d.appendChild(h);
     list.forEach(function(e){
       var row=document.createElement("div");row.className="tdr";
-      var cv=cover(e.r);cv.style.width=cv.style.height="36px";cv.style.fontSize="18px";requestCover(e.r);
+      var cv=cpv(cover(e.r),e.r,"td");cv.style.width=cv.style.height="36px";cv.style.fontSize="18px";requestCover(e.r);
       var tx=document.createElement("div"),b=document.createElement("b"),sp=document.createElement("span");
       tx.className="tn";b.textContent=e.r.title;
       var ds="";try{ds=e.last?new Date(e.last).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):""}catch(er){}
@@ -1544,7 +1552,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     arts.slice(0,6).forEach(function(a,i){
       var li=document.createElement("li"),rk=document.createElement("div"),tn=document.createElement("div"),b=document.createElement("b"),s=document.createElement("span");
       rk.className="rk";rk.textContent=String(i+1);
-      var cv=cover(a.r);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(a.r);
+      var cv=cpv(cover(a.r),a.r,"art");cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(a.r);
       tn.className="tn";b.textContent=a.name;s.textContent=a.n+(a.n===1?" listen":" listens");tn.appendChild(b);tn.appendChild(s);
       li.appendChild(rk);li.appendChild(cv);li.appendChild(tn);ul.appendChild(li);
       li.tabIndex=0;li.setAttribute("role","button");li.setAttribute("aria-label","Show records by "+a.name);
@@ -1593,7 +1601,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       var pvb=document.createElement("button");pvb.type="button";pvb.className="btn ghost qbtn";pvb.textContent="Preview";
       pvb.setAttribute("aria-label","Preview "+x.r.title);pvb.onclick=function(){openPreview(x.r)};
       var rb=document.createElement("div");rb.className="rbtns hrow";rb.appendChild(pvb);rb.appendChild(b);rb.appendChild(queueBtn(x.r));
-      var cv=cover(x.r);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(x.r);
+      var cv=cpv(cover(x.r),x.r,"top");cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(x.r);
       li.appendChild(num);li.appendChild(cv);li.appendChild(box);li.appendChild(rb);ul.appendChild(li);
     });
   }
@@ -1641,6 +1649,69 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     out.sort(function(a,b){return b.sc-a.sc||(a.d===null?99:a.d)-(b.d===null?99:b.d)});
     return out.slice(0,8);
   }
+  /* Tap a cover to open a short summary of that record right under its row (the same details as the Preview card) */
+  var INL={open:{}};
+  function inlSnip(t){
+    t=(t||"").replace(/\s+/g," ").trim();if(t.length<=380)return t;
+    var ss=t.match(/[^.!?]+[.!?]+(\s|$)/g)||[t],o="";
+    for(var i=0;i<ss.length&&o.length<260;i++)o+=ss[i];
+    return (o||t.slice(0,380)).trim()+(o.length<t.length?" \u2026":"");
+  }
+  function inlFill(pn,r){
+    var k=key(r),w=WEB[k]||{},txt=w.extract||ABOUT[k]||"";
+    pn.innerHTML="";
+    var h=document.createElement("div");h.style.cssText="font-weight:600";h.textContent=r.title;pn.appendChild(h);
+    var m=[r.artist,r.year||"",fmtMain(r.format),r.label].filter(Boolean).join(" \u00b7 ");
+    if(m){var d=document.createElement("div");d.className="meta";d.textContent=m;pn.appendChild(d)}
+    var v=vibe(r);if(v){var d2=document.createElement("div");d2.className="meta npv";d2.textContent=v;pn.appendChild(d2)}
+    var pl=PLAYS[k];
+    if(pl&&pl.n){var d3=document.createElement("div");d3.className="meta";d3.textContent="Spun "+pl.n+(pl.n===1?" time":" times");pn.appendChild(d3)}
+    var a=document.createElement("p");a.className="about";a.style.margin="8px 0 4px";
+    a.textContent=txt?inlSnip(txt):(webBusy[k]?"Looking up a summary\u2026":"No summary yet. Open the full card to look further.");
+    pn.appendChild(a);
+    if(w.extract&&w.url){var al=document.createElement("a");al.className="info";al.href=w.url;al.target="_blank";al.rel="noopener";al.textContent="\u24d8 Wikipedia";al.style.cssText="font-size:12px;margin-right:12px";pn.appendChild(al)}
+    var bt=document.createElement("button");bt.type="button";bt.className="btn ghost qbtn";bt.textContent="Open full card";
+    bt.onclick=function(){openPreview(r)};pn.appendChild(bt);
+    var bc=document.createElement("button");bc.type="button";bc.className="btn ghost qbtn";bc.textContent="Close";bc.style.marginLeft="6px";
+    bc.onclick=function(){inlClose(pn)};pn.appendChild(bc);
+  }
+  function inlClose(pn){
+    delete INL.open[pn._ck];
+    if(pn._cv){pn._cv.classList.remove("cpl");pn._cv.setAttribute("aria-expanded","false")}
+    if(pn._iv)clearInterval(pn._iv);
+    if(pn.parentNode)pn.parentNode.removeChild(pn);
+  }
+  /* The top-artists list is a two-column grid, so its summary opens full width below the whole grid instead of inside it */
+  function inlAnchor(row){return row.parentNode&&row.parentNode.classList&&row.parentNode.classList.contains("tart")?row.parentNode:row}
+  function inlShow(cv,r,ck,row){
+    if(!row||!row.parentNode)return;
+    Array.prototype.slice.call(document.querySelectorAll(".inl")).forEach(inlClose);
+    INL.open={};
+    var anc=inlAnchor(row),pn=document.createElement(anc===row?"li":"div");pn.className="inl";pn._ck=ck;pn._cv=cv;
+    inlFill(pn,r);anc.parentNode.insertBefore(pn,anc.nextSibling);
+    INL.open[ck]=1;cv.classList.add("cpl");cv.setAttribute("aria-expanded","true");
+    var k=key(r);loadWeb(r);
+    var n=0;pn._iv=setInterval(function(){
+      if(!pn.parentNode||++n>40){clearInterval(pn._iv);return}
+      var before=pn.textContent;inlFill(pn,r);
+      if(!webBusy[k]&&!(WEB[k]&&WEB[k].done===undefined&&!WEB[k].werr&&false)){if(pn.textContent===before&&n>2)clearInterval(pn._iv)}
+    },900);
+  }
+  function cpv(cv,r,ctx){
+    var k=key(r),ck=(ctx||"")+"|"+k;
+    cv.classList.add("cpv");cv.removeAttribute("aria-hidden");cv.tabIndex=0;cv.setAttribute("role","button");
+    cv.setAttribute("aria-expanded","false");cv.setAttribute("aria-label","Show a short summary of "+r.title);cv.title="Show a short summary";
+    function row(){return cv.closest("li,.tdr")}
+    function go(ev){
+      ev.stopPropagation();if(ev.type==="keydown"){if(ev.key!=="Enter"&&ev.key!==" ")return;ev.preventDefault()}
+      var nx=row()&&inlAnchor(row()).nextSibling;
+      if(nx&&nx.classList&&nx.classList.contains("inl")&&nx._ck===ck){inlClose(nx);return}
+      inlShow(cv,r,ck,row());
+    }
+    cv.onclick=go;cv.onkeydown=go;
+    if(INL.open[ck])Promise.resolve().then(function(){var rw=row();if(rw){var ns=inlAnchor(rw).nextSibling;if(!(ns&&ns.classList&&ns.classList.contains("inl")))inlShow(cv,r,ck,rw)}});
+    return cv;
+  }
   function renderPairs(r,V){
     var box=$(V.p+"Pairs"),ul=$(V.p+"PairList"),note=$(V.p+"PairNote");
     ul.innerHTML="";box.hidden=false;
@@ -1667,7 +1738,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       pvb.setAttribute("aria-label","Preview "+p.r.title);pvb.onclick=function(){openPreview(p.r)};
       var rb=document.createElement("div");rb.className="rbtns hrow";rb.appendChild(pvb);rb.appendChild(b);rb.appendChild(queueBtn(p.r));
       var top=document.createElement("div");top.className="ptop";
-      var cv=cover(p.r);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCoverLow(p.r);
+      var cv=cpv(cover(p.r),p.r,"pair"+V.p);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCoverLow(p.r);
       top.appendChild(cv);top.appendChild(d);
       li.appendChild(top);li.appendChild(rb);ul.appendChild(li);
     });
@@ -2244,7 +2315,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       box.appendChild(t);box.appendChild(a);box.appendChild(m);
       var vb=vibe(r);
       if(vb){var v=document.createElement("div");v.className="mv";v.textContent=vb;box.appendChild(v);}
-      li.appendChild(cover(r));li.appendChild(box);
+      li.appendChild(cpv(cover(r),r,"match"));li.appendChild(box);
       var pb=document.createElement("button");pb.className="btn ghost qbtn";
       pb.textContent=key(r)===nowKey?"\u25b6 Playing":"\u25b6 Play";pb.setAttribute("aria-label","Play "+r.title);
       pb.onclick=function(){setNow(r)};
