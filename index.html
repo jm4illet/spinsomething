@@ -66,6 +66,13 @@ a{color:var(--accent)}
 .mi .mt{font-weight:600;word-break:break-word}
 .mi .ma,.mi .mm{color:var(--muted);font-size:13px}
 .mi .mv{font-size:13px;font-style:italic;margin-top:2px}
+.fchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.fchips:empty{display:none}
+.fchip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--accent);background:rgba(65,105,225,.12);color:var(--ink);border-radius:999px;padding:3px 4px 3px 10px;font:13px system-ui,sans-serif;cursor:pointer;max-width:100%;text-align:left}
+.fchip.exc{border-color:#b3412f;background:rgba(179,65,47,.13)}
+.fchip .ft{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fchip .fx{opacity:.7;padding:0 6px;font-size:16px;line-height:1;border-radius:999px}
+.fchip .fx:hover{opacity:1;background:rgba(0,0,0,.08)}
 .cover.cpv{position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .cover.cpv::after{content:"\24d8";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;background:rgba(0,0,0,.28);border-radius:inherit;opacity:0;transition:opacity .15s;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 .cover.cpv:hover::after,.cover.cpv:focus-visible::after{opacity:1}
@@ -390,7 +397,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
   <button type="button" class="btn ghost fwbtn" id="filtWide" aria-pressed="false" aria-label="Expand filters" title="Expand">⤢</button>
   <details id="filtDet" open>
   <summary id="filtHead">Filters</summary>
-  <div class="row" style="margin-top:10px">
+  <div class="row" style="margin-top:10px;align-items:flex-start">
     <div><label for="fFormat">Format</label><select id="fFormat"></select></div>
     <div><label for="fArtist">Artist</label><select id="fArtist"></select></div>
     <div><label for="fFolder">Folder</label><select id="fFolder"></select></div>
@@ -398,7 +405,9 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <div id="genreWrap"><label for="fGenre">Genre (from CSV)</label><select id="fGenre"></select></div>
     <div><label for="fDecade">Decade</label><select id="fDecade"></select></div>
     <div><label for="fMood">Mood</label><select id="fMood"></select></div>
+    <div><label for="fListen">Listening</label><select id="fListen"></select></div>
   </div>
+  <div class="meta" id="fHint" hidden style="margin-top:8px">Pick several values and a record matches if it has any of them. Tap a chip to switch it between including and excluding; × removes it.</div>
   <div class="check"><input type="checkbox" id="surprise"><label for="surprise">Surprise me: favor records I haven’t played much, or not in a while</label></div>
   <div class="check"><input type="checkbox" id="pairPick" checked><label for="pairPick">While a record is playing, pick from what “pairs well with” it</label></div>
   <div class="check"><input type="checkbox" id="noRepeat" checked><label for="noRepeat">Don’t repeat records until I’ve been through them all</label></div>
@@ -753,15 +762,7 @@ Kaytranada,99.9%,"2xLP, Album",XL Recordings,2016,2016,,XLLP 765,Collection`;
     records=list;
     store(KEY_C,list);
     seen={};
-    fill($("fFormat"),uniq(list.map(function(r){return fmtMain(r.format)})),"Any format");
-    fillArtist(list);
-    fill($("fFolder"),uniq(list.map(function(r){return r.folder})),"Any folder");
-    fill($("fDecade"),uniq(list.map(function(r){return decade(r.year)})),"Any decade");
-    var gl=uniq([].concat.apply([],list.map(genres)));
-    fill($("fGenre"),gl,"Any genre");
-    $("genreWrap").hidden=!gl.length;
-    fillGroup(list);
-    fillMood(list);
+    pruneFilters();
     renderNow();
     var has=list.length>0;
     $("filters").hidden=!has; $("pick").disabled=!has; $("logCard").hidden=!has;
@@ -770,19 +771,100 @@ Kaytranada,99.9%,"2xLP, Album",XL Recordings,2016,2016,,XLLP 765,Collection`;
     updatePool();
   }
 
-  var FILTER_IDS=["fFormat","fArtist","fFolder","fDecade","fGenre","fGroup","fMood"];
+  /* Filters. Each filter holds chips: values to include (a record needs any one of them) and values to exclude.
+     Filters combine with "and". The dropdowns only offer values that still match the other filters, with counts. */
+  var DAY=864e5;
+  function listenTags(r){
+    var k=key(r),o=PLAYS[k],t=[],now=Date.now();
+    if(o&&o.n)t.push("Played before");else t.push("Never played");
+    var last=(o&&o.last)||0;
+    if(!last||now-last>30*DAY)t.push("Not played in 30 days");
+    if(!last||now-last>90*DAY)t.push("Not played in 90 days");
+    if(FAVS[k])t.push("Favorite");
+    if(QUEUE.indexOf(k)>-1)t.push("In queue");
+    return t;
+  }
+  function sortKeyA(a){return a.toLowerCase().replace(/^the\s+/,"")}
+  var FDEF=[
+    {id:"fFormat",any:"Any format",vals:function(r){return [fmtMain(r.format)]},sort:"alpha"},
+    {id:"fArtist",any:"Any artist",vals:function(r){return [r.artist||""]},sort:function(a,b){var x=sortKeyA(a),y=sortKeyA(b);return x<y?-1:x>y?1:0}},
+    {id:"fFolder",any:"Any folder",vals:function(r){return [r.folder||""]},sort:"alpha"},
+    {id:"fGroup",any:"Any genre group",vals:function(r){return cats(r)},sort:function(a,b){var ix=function(n){for(var i=0;i<CATS.length;i++)if(CATS[i][0]===n)return i;return 99};return ix(a)-ix(b)}},
+    {id:"fGenre",any:"Any genre",vals:function(r){return genres(r)},sort:"alpha"},
+    {id:"fDecade",any:"Any decade",vals:function(r){return [decade(r.year)]},sort:"alpha"},
+    {id:"fMood",any:"Any mood",vals:function(r){return moods(vwords(r))},label:function(v){return MOODS[v]?MOODS[v].slice(0,3).join(" / "):v},sort:function(a,b){return a-b}},
+    {id:"fListen",any:"Any listening",vals:listenTags,sort:function(a,b){var o=["Never played","Played before","Not played in 30 days","Not played in 90 days","Favorite","In queue"];return o.indexOf(a)-o.indexOf(b)}}
+  ];
+  var FILTER_IDS=FDEF.map(function(d){return d.id});
+  var FSEL={};FILTER_IDS.forEach(function(id){FSEL[id]={inc:[],exc:[]}});
+  function fActive(){return FDEF.filter(function(d){var s=FSEL[d.id];return s.inc.length||s.exc.length})}
+  function fPass(v,s){
+    if(s.inc.length&&!s.inc.some(function(x){return v.indexOf(x)>-1}))return false;
+    if(s.exc.some(function(x){return v.indexOf(x)>-1}))return false;
+    return true;
+  }
   function pool(){
-    var mo=$("fMood").value;
-    var f=$("fFormat").value,fo=$("fFolder").value,d=$("fDecade").value,ge=$("fGenre").value,gg=$("fGroup").value,ar=$("fArtist").value;
-    return records.filter(function(r){
-      return (!ar||r.artist===ar)&&(!f||fmtMain(r.format)===f)&&(!fo||r.folder===fo)&&(!d||decade(r.year)===d)&&(!ge||genres(r).indexOf(ge)>-1)&&(!gg||cats(r).indexOf(gg)>-1)&&(!mo||moods(vwords(r)).indexOf(mo)>-1);
-    });
+    var act=fActive();
+    if(!act.length)return records.slice();
+    return records.filter(function(r){return act.every(function(d){return fPass(d.vals(r),FSEL[d.id])})});
   }
   function key(r){return r.id||(r.artist+"|"+r.title)}
+  function flabel(d,v){return d.label?d.label(v):v}
+  function fchips(d){
+    var box=$(d.id+"Chips");
+    if(!box){box=document.createElement("div");box.className="fchips";box.id=d.id+"Chips";$(d.id).parentNode.appendChild(box)}
+    return box;
+  }
+  /* Rebuild every dropdown (only values that still match the other filters, with counts) and every chip row */
+  function renderFilters(){
+    var rows=records.map(function(r){var v={};FDEF.forEach(function(d){v[d.id]=d.vals(r)});return v});
+    var act=fActive(),anyChip=false,genreSeen=false;
+    FDEF.forEach(function(d){
+      var sel=$(d.id),S=FSEL[d.id],others=act.filter(function(x){return x!==d}),counts={};
+      rows.forEach(function(v){
+        if(others.length&&!others.every(function(x){return fPass(v[x.id],FSEL[x.id])}))return;
+        var seenV={};v[d.id].forEach(function(x){if(x&&!seenV[x]){seenV[x]=1;counts[x]=(counts[x]||0)+1}});
+      });
+      if(d.id==="fGenre")genreSeen=rows.some(function(v){return v.fGenre.length});
+      var chosen=S.inc.concat(S.exc),vals=Object.keys(counts).filter(function(x){return chosen.indexOf(x)<0});
+      if(d.sort==="alpha")vals.sort();else vals.sort(d.sort);
+      sel.innerHTML="";
+      var o0=document.createElement("option");o0.value="";o0.textContent=chosen.length?"Add another\u2026":d.any;sel.appendChild(o0);
+      vals.forEach(function(x){var o=document.createElement("option");o.value=x;o.textContent=flabel(d,x)+" ("+counts[x]+")";sel.appendChild(o)});
+      sel.disabled=!vals.length&&!chosen.length;
+      sel.value="";
+      var box=fchips(d);box.innerHTML="";
+      [["inc",S.inc],["exc",S.exc]].forEach(function(g){g[1].forEach(function(x){
+        anyChip=true;
+        var b=document.createElement("button");b.type="button";b.className="fchip"+(g[0]==="exc"?" exc":"");
+        var t=document.createElement("span");t.className="ft";t.textContent=(g[0]==="exc"?"not ":"")+flabel(d,x);
+        var xx=document.createElement("span");xx.className="fx";xx.textContent="\u00d7";xx.setAttribute("role","button");xx.setAttribute("aria-label","Remove "+flabel(d,x));
+        b.title=g[0]==="exc"?"Excluding "+flabel(d,x)+". Tap to include instead.":"Including "+flabel(d,x)+". Tap to exclude instead.";
+        b.appendChild(t);b.appendChild(xx);
+        b.onclick=function(ev){
+          var rm=ev.target===xx;
+          S.inc=S.inc.filter(function(y){return y!==x});S.exc=S.exc.filter(function(y){return y!==x});
+          if(!rm)(g[0]==="inc"?S.exc:S.inc).push(x);
+          updatePool();
+        };
+        box.appendChild(b);
+      })});
+    });
+    $("genreWrap").hidden=!genreSeen;
+    $("fHint").hidden=!anyChip;
+  }
+  /* After a new collection loads, drop chips for values that no longer exist */
+  function pruneFilters(){
+    FDEF.forEach(function(d){
+      var have={};records.forEach(function(r){d.vals(r).forEach(function(x){have[x]=1})});
+      var S=FSEL[d.id];
+      S.inc=S.inc.filter(function(x){return have[x]||d.id==="fListen"});S.exc=S.exc.filter(function(x){return have[x]||d.id==="fListen"});
+    });
+  }
   function updatePool(){
     var p=pool();
-    var any=FILTER_IDS.some(function(id){return $(id).value});
-    $("clearFilters").hidden=!any;
+    renderFilters();
+    $("clearFilters").hidden=!fActive().length;
     $("pool").textContent=p.length+" record"+(p.length===1?"":"s")+" match your filters.";
     $("pick").disabled=p.length===0;
     renderList(p);
@@ -1236,7 +1318,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   }
   function today(){var d=new Date(),z=function(n){return (n<10?"0":"")+n};return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())}
   function niceDate(ts){try{return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}catch(e){return ""}}
-  function spinsChanged(){renderSpins(NP);renderSpins(PV);renderTop();renderLog()}
+  function spinsChanged(){renderSpins(NP);renderSpins(PV);renderTop();renderLog();keepScroll=true;try{updatePool()}catch(e){}}
   function undoSpin(){if(removeSpin(nowKey))spinsChanged()}
   /* Log past listens: add or remove a spin for any record, searched by artist or title */
   function renderLog(){
@@ -2501,10 +2583,15 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   try{$("pairPick").checked=localStorage.getItem("spin_pairpick")!=="0"}catch(e){}
   $("pairPick").onchange=function(){try{localStorage.setItem("spin_pairpick",$("pairPick").checked?"1":"0")}catch(e){}};
   $("surprise").onchange=function(){try{if($("surprise").checked)localStorage.setItem("spin_surprise","1");else localStorage.removeItem("spin_surprise")}catch(e){}};
-  FILTER_IDS.forEach(function(id){$(id).onchange=function(){seen={};updatePool()}});
+  /* Choosing a value adds it as a chip. The "seen" memory is kept on purpose, so changing filters doesn't restart the no-repeat cycle. */
+  FILTER_IDS.forEach(function(id){$(id).onchange=function(){
+    var v=$(id).value,S=FSEL[id];
+    if(v&&S.inc.indexOf(v)<0&&S.exc.indexOf(v)<0)S.inc.push(v);
+    updatePool();
+  }});
   $("clearFilters").onclick=function(){
-    FILTER_IDS.forEach(function(id){$(id).value=""});
-    seen={};updatePool();
+    FILTER_IDS.forEach(function(id){FSEL[id]={inc:[],exc:[]}});
+    updatePool();
   };
   $("logDate").max=today();$("logDate").value=today();
   function setLogDay(off){var d=new Date();d.setDate(d.getDate()-off);var z=function(n){return (n<10?"0":"")+n};
@@ -2523,7 +2610,6 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   var ORIG=read("spin_orig_v1")||{},yrGen=0;
   function refreshDecades(){
     store(KEY_C,records);
-    fill($("fDecade"),uniq(records.map(function(r){return decade(r.year)})),"Any decade");
     try{updatePool()}catch(e){}
   }
   function useOrig(r,y,src){
