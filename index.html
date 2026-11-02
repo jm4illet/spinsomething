@@ -66,6 +66,12 @@ a{color:var(--accent)}
 .mi .mt{font-weight:600;word-break:break-word}
 .mi .ma,.mi .mm{color:var(--muted);font-size:13px}
 .mi .mv{font-size:13px;font-style:italic;margin-top:2px}
+#hist li{display:flex;align-items:center;gap:10px}
+#hist li.inl{display:block}
+#hist .rk{flex:0 0 14px;text-align:center;color:var(--muted);font-size:13px}
+#hist .tn{flex:1;min-width:0}
+#hist .tn b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hist .tn span{font-size:12px}
 .fchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .fchips:empty{display:none}
 .fchip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--accent);background:rgba(65,105,225,.12);color:var(--ink);border-radius:999px;padding:3px 4px 3px 10px;font:13px system-ui,sans-serif;cursor:pointer;max-width:100%;text-align:left}
@@ -425,8 +431,10 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 </div>
 
 <div class="card" id="histCard" hidden>
-  <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="flex:1 1 auto;margin:0">Recently spun</h2><button class="btn ghost" id="clear" style="flex:0 0 auto">Clear</button></div>
-  <ul id="hist"></ul>
+  <details id="histDet" open>
+    <summary id="histHead">Recently listened</summary>
+    <ul id="hist" style="margin-top:6px"></ul>
+  </details>
 </div>
 
 <div class="card">
@@ -1655,6 +1663,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
   $("tasteMore").onclick=function(){TMORE=!TMORE;renderTaste()};
   $("tasteInfo").onclick=function(){var n=$("tasteNote");n.hidden=!n.hidden};
   function renderTop(){
+    renderHist();
     var rows=[];
     Object.keys(PLAYS).forEach(function(k){
       var o=PLAYS[k];if(!o||!o.n)return;
@@ -2514,16 +2523,36 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
       link.target="_blank";link.rel="noopener";link.textContent="View on Discogs";l.appendChild(link);$("result").appendChild(l);}
   }
 
+  /* Recently listened: the last 5 different records you've spun or logged, newest first */
+  function ago(t){
+    var a=new Date(t),b=new Date();a.setHours(0,0,0,0);b.setHours(0,0,0,0);
+    var d=Math.round((b-a)/864e5);
+    if(d<=0)return "today";if(d===1)return "yesterday";if(d<=14)return d+" days ago";
+    try{return new Date(t).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}catch(e){return ""}
+  }
   function renderHist(){
-    $("histCard").hidden=!history.length;
+    var rows=[];
+    Object.keys(PLAYS).forEach(function(k){
+      var o=PLAYS[k];if(!o||!o.n||!o.last)return;
+      var r=recByKey(k);if(r)rows.push({r:r,last:o.last,n:o.n});
+    });
+    rows.sort(function(a,b){return b.last-a.last});
+    rows=rows.slice(0,5);
+    $("histCard").hidden=!rows.length;
+    $("histHead").textContent="Recently listened"+(rows.length?" (last "+rows.length+")":"");
     var ul=$("hist");ul.innerHTML="";
-    history.slice(0,10).forEach(function(r){
+    rows.forEach(function(x,i){
       var li=document.createElement("li");
-      li.textContent=r.title;
-      var s=document.createElement("span");s.textContent=r.artist?" — "+r.artist:"";
-      li.appendChild(s);ul.appendChild(li);
+      var num=document.createElement("div");num.className="rk";num.textContent=String(i+1);li.appendChild(num);
+      var cv=cpv(cover(x.r),x.r,"hist");cv.style.width=cv.style.height="40px";cv.style.fontSize="20px";requestCover(x.r);
+      var tx=document.createElement("div"),b=document.createElement("b"),sp=document.createElement("span");
+      tx.className="tn";b.textContent=x.r.title;
+      sp.textContent=[x.r.artist,ago(x.last)].filter(Boolean).join(" \u00b7 ");
+      tx.appendChild(b);tx.appendChild(sp);li.appendChild(cv);li.appendChild(tx);ul.appendChild(li);
     });
   }
+  try{if(localStorage.getItem("spin_hist_open")==="0")$("histDet").open=false}catch(e){}
+  $("histDet").addEventListener("toggle",function(){try{localStorage.setItem("spin_hist_open",$("histDet").open?"1":"0")}catch(e){}});
 
   /* Surprise mode: fewer spins and a longer wait since the last one both raise a record's odds; never-played records count triple */
   function weightedPick(p){
@@ -2598,7 +2627,6 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     $("logDate").value=d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());$("logDate").dispatchEvent(new Event("change"))}
   $("logToday").onclick=function(){setLogDay(0)};$("logYest").onclick=function(){setLogDay(1)};
   $("logSearch").oninput=function(){$("logMsg").textContent="";renderLog()};
-  $("clear").onclick=function(){history=[];store(KEY_H,history);renderHist()};
 
   function ingest(text){
     var list=fromText(text);
