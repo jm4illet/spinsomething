@@ -120,6 +120,8 @@ h1+.sub:not([hidden]),.collname+.sub:not([hidden]){margin-top:-12px}
 .stage.collapsed{padding:14px 52px}
 .stage.collapsed .disc,.stage.collapsed #result{display:none}
 .stage.collapsed #pick{margin-top:0}
+.stage.collapsed #filters{display:none}
+#stage #filters{text-align:left;margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
 .vwrap{position:relative;width:120px;height:120px;flex:0 0 auto}
 .vinyl{position:absolute;inset:0;border-radius:50%;
   background:repeating-radial-gradient(circle at center,#141414 0 2px,#1f1f1f 2px 4px);
@@ -156,6 +158,7 @@ body.hasmini main{padding-bottom:84px}
   #filters{position:relative}
   .fwbtn{display:inline-block;position:absolute;top:12px;right:14px;margin:0;padding:3px 11px;font-size:12px}
   .cols.fwide{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+  .cols.fwide.stageL{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
   .cols.fwide #matchList{max-height:640px}
   .cols.fwide #matchList li{gap:16px;padding:8px 0}
   .cols.fwide #matchList .cover{width:96px;height:96px;flex:0 0 96px;font-size:44px;border-radius:8px}
@@ -200,6 +203,7 @@ body.hasmini main{padding-bottom:84px}
 #tasteMore.tmore{display:block;margin:6px 0 0;padding:4px 12px;font-size:12px}
 #tasteGenWrap .chips{margin-bottom:0}
 .tart li{cursor:pointer}
+.tasteR .tart{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}
 .tart li.sel .tn b{color:var(--accent)}
 .chip{cursor:pointer}
 .chip.sel{outline:2px solid var(--accent);outline-offset:1px}
@@ -397,10 +401,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
     <div class="meta">Load your collection, then hit the button.</div>
   </div>
   <button class="btn" id="pick" disabled>Pick a record</button>
-</div>
-
-<div class="card" id="filters" hidden>
-  <button type="button" class="btn ghost fwbtn" id="filtWide" aria-pressed="false" aria-label="Expand filters" title="Expand">⤢</button>
+<div id="filters" hidden>
   <details id="filtDet" open>
   <summary id="filtHead">Filters</summary>
   <div class="row" style="margin-top:10px;align-items:flex-start">
@@ -428,6 +429,7 @@ try{var _t=localStorage.getItem("spin_theme");if(_t==="dark"||_t==="light")docum
 
     <ul id="matchList"></ul>
   </details>
+</div>
 </div>
 
 <div class="card" id="histCard" hidden>
@@ -1549,8 +1551,19 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     var st=$("stage"),L=document.querySelector(".colL"),R=document.querySelector(".colR");
     if(!st||!L||!R)return;
     if(!nowKey&&!pvKey){var t=$("topCard");if(st.parentNode!==L||st.nextElementSibling!==t)L.insertBefore(st,t)}
-    else{var f=$("filters");if(st.parentNode!==R||st.nextElementSibling!==f)R.insertBefore(st,f)}
+    else{var f=$("histCard");if(st.parentNode!==R||st.nextElementSibling!==f)R.insertBefore(st,f)}
+    var cl=document.querySelector(".cols");if(cl)cl.classList.toggle("stageL",st.parentNode===L);
   }
+  /* Top artists & genres always follows Recently listened: in the right column on wide screens, and right under it on phones */
+  var MQW=window.matchMedia?window.matchMedia("(min-width:900px)"):null;
+  function placeTaste(){
+    var t=$("tasteCard"),L=document.querySelector(".colL"),R=document.querySelector(".colR"),h=$("histCard"),m=$("topCard");
+    if(!t||!L||!R||!h||!m)return;
+    if(t.parentNode!==R||t.previousElementSibling!==h)R.insertBefore(t,h.nextSibling);
+    t.classList.toggle("tasteR",!!(MQW&&MQW.matches));
+  }
+  placeTaste();
+  if(MQW){try{MQW.addEventListener("change",placeTaste)}catch(e){try{MQW.addListener(placeTaste)}catch(e2){}}}
   function renderView(V){
     placeStage();
     var r=V.rec();
@@ -1639,7 +1652,7 @@ Kaytranada|99.9%|Electronic · R&B · hip hop — groovy, smooth`;
     $("tasteNote").textContent="Counts every listen you’ve logged or spun"+(TRANGE==="30"?" in the last 30 days (listens without a date aren’t included)":"")+". Genres come from your collection, or the genre group when a record has none; a record with several genres counts toward each.";
     $("tasteStat").textContent=tot?tot+(tot===1?" listen":" listens")+" · "+nrec+(nrec===1?" record":" records")+" · "+arts.length+(arts.length===1?" artist":" artists"):(TRANGE==="30"?"No listens in the last 30 days.":"");
     var ul=$("tasteArtists");ul.innerHTML="";
-    arts.slice(0,6).forEach(function(a,i){
+    arts.slice(0,5).forEach(function(a,i){
       var li=document.createElement("li"),rk=document.createElement("div"),tn=document.createElement("div"),b=document.createElement("b"),s=document.createElement("span");
       rk.className="rk";rk.textContent=String(i+1);
       var cv=cpv(cover(a.r),a.r,"art",a.name);cv.style.width=cv.style.height="44px";cv.style.fontSize="22px";requestCover(a.r);
